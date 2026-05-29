@@ -88,11 +88,23 @@ class AnalogCapture:
     def __exit__(self, *_exc) -> None:
         self.close()
 
+    # Single libusb transfer caps out around ~16 MB on the Pi 5's USB stack.
+    # 4 seconds @ 1.024 MS/s × 8 bytes/complex64 ≈ 33 MB, so we slice reads at
+    # ~2-second chunks (~16 MB) and concatenate.
+    _MAX_READ_SEC = 2.0
+
     def read_chunk_full(self, duration_sec: float) -> CaptureChunk:
         """Read one chunk with full diagnostics. Squelched flag set, never None."""
-        n_samples = int(self.sample_rate * duration_sec)
-        n_samples = (n_samples // 512) * 512  # pyrtlsdr needs multiple of 512
-        iq = self.sdr.read_samples(n_samples)
+        total_samples = int(self.sample_rate * duration_sec)
+        total_samples = (total_samples // 512) * 512  # pyrtlsdr needs multiple of 512
+        slice_samples = int(self.sample_rate * self._MAX_READ_SEC) // 512 * 512
+        slices: list[np.ndarray] = []
+        remaining = total_samples
+        while remaining > 0:
+            n = min(slice_samples, remaining)
+            slices.append(self.sdr.read_samples(n))
+            remaining -= n
+        iq = np.concatenate(slices) if len(slices) > 1 else slices[0]
 
         iq_power = float(np.mean(np.abs(iq) ** 2))
 

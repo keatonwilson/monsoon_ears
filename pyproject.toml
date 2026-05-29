@@ -20,6 +20,7 @@ pi = [
     # isn't in the librtlsdr shipped by Raspberry Pi OS (Debian Trixie).
     "pyrtlsdr>=0.3.0,<0.4.0",
     "openai-whisper>=20231117",
+    "webrtcvad>=2.0.10",
     "aprs3>=8.0",
 ]
 dev = [

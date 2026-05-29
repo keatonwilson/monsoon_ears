@@ -1,4 +1,8 @@
-"""Phase 02 analog ingestion loop: capture → preprocess → Whisper → SQLite.
+"""Phase 02 analog ingestion loop: capture → squelch → VAD → Whisper → SQLite.
+
+Each chunk that survives the RMS squelch is segmented by webrtcvad. Whisper
+runs once per speech segment instead of once per fixed window — fewer mid-word
+cuts, less wasted compute on dead air, fewer hallucinations.
 
 Run with:
     uv run python -m ingestion.runner_analog
@@ -18,6 +22,7 @@ from db.queries import insert_transcription
 from ingestion.capture_analog import AnalogCapture
 from ingestion.preprocess import preprocess_radio_audio
 from ingestion.transcribe import transcribe
+from ingestion.vad import find_speech_segments
 from models.schemas import TranscriptionEvent
 
 # Rural Metro Fire Dispatch — confirmed analog FM during Phase 01.
@@ -41,9 +46,10 @@ def main() -> int:
     sample_rate = int(os.getenv("SDR_SAMPLE_RATE", 1_024_000))
     gain_raw = os.getenv("SDR_GAIN", "40")
     gain: float | str = "auto" if gain_raw.lower() == "auto" else float(gain_raw)
-    chunk_sec = float(os.getenv("CHUNK_DURATION_SEC", 8))
+    chunk_sec = float(os.getenv("CHUNK_DURATION_SEC", 15))
     noise_floor_rms = float(os.getenv("NOISE_FLOOR_RMS", 0.65))
-    min_duration = float(os.getenv("SILENCE_MIN_DURATION", 1.5))
+    vad_aggressiveness = int(os.getenv("VAD_AGGRESSIVENESS", 2))
+    vad_min_segment_ms = int(os.getenv("VAD_MIN_SEGMENT_MS", 800))
 
     capture = AnalogCapture(
         freq_mhz=freq_mhz,
@@ -52,7 +58,13 @@ def main() -> int:
         noise_floor_rms=noise_floor_rms,
     )
 
+    shutting_down = False
+
     def _shutdown(*_):
+        nonlocal shutting_down
+        if shutting_down:
+            return
+        shutting_down = True
         log.info("shutting down")
         capture.close()
         sys.exit(0)
@@ -60,31 +72,42 @@ def main() -> int:
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
 
-    log.info("starting capture loop @ %.4f MHz, chunk=%.1fs", freq_mhz, chunk_sec)
+    log.info(
+        "starting capture loop @ %.4f MHz, chunk=%.1fs, vad_aggr=%d, vad_min=%dms",
+        freq_mhz, chunk_sec, vad_aggressiveness, vad_min_segment_ms,
+    )
     try:
         for audio in capture.iter_chunks(chunk_sec):
             if audio is None:
                 continue
-            duration = audio.size / capture.audio_rate
-            if duration < min_duration:
-                log.debug("skipping short chunk %.2fs", duration)
-                continue
-
             cleaned = preprocess_radio_audio(audio, sr=capture.audio_rate)
-            text = transcribe(cleaned, sr=capture.audio_rate)
-            if not text:
-                log.debug("whisper returned empty text")
+            segments = find_speech_segments(
+                cleaned,
+                aggressiveness=vad_aggressiveness,
+                min_segment_ms=vad_min_segment_ms,
+            )
+            if not segments:
+                log.debug("chunk had no speech segments after VAD")
                 continue
 
-            event = TranscriptionEvent(
-                timestamp=datetime.now(timezone.utc),
-                frequency_mhz=freq_mhz,
-                raw_text=text,
-                duration_sec=duration,
-                source="analog",
-            )
-            row_id = insert_transcription(event)
-            log.info("[%s] id=%d (%.1fs) %s", freq_mhz, row_id, duration, text[:120])
+            for seg in segments:
+                seg_audio = cleaned[seg.start_sample : seg.end_sample]
+                duration_sec = seg_audio.size / capture.audio_rate
+                text = transcribe(seg_audio, sr=capture.audio_rate)
+                if not text:
+                    continue
+                event = TranscriptionEvent(
+                    timestamp=datetime.now(timezone.utc),
+                    frequency_mhz=freq_mhz,
+                    raw_text=text,
+                    duration_sec=duration_sec,
+                    source="analog",
+                )
+                row_id = insert_transcription(event)
+                log.info(
+                    "[%s] id=%d (%.1fs) %s",
+                    freq_mhz, row_id, duration_sec, text[:120],
+                )
     finally:
         capture.close()
     return 0
