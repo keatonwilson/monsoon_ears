@@ -42,14 +42,14 @@ def main() -> int:
     gain_raw = os.getenv("SDR_GAIN", "40")
     gain: float | str = "auto" if gain_raw.lower() == "auto" else float(gain_raw)
     chunk_sec = float(os.getenv("CHUNK_DURATION_SEC", 8))
-    silence_threshold = float(os.getenv("SILENCE_THRESHOLD", 0.01))
+    noise_floor_rms = float(os.getenv("NOISE_FLOOR_RMS", 0.65))
     min_duration = float(os.getenv("SILENCE_MIN_DURATION", 1.5))
 
     capture = AnalogCapture(
         freq_mhz=freq_mhz,
         sample_rate=sample_rate,
         gain=gain,
-        silence_threshold=silence_threshold,
+        noise_floor_rms=noise_floor_rms,
     )
 
     def _shutdown(*_):

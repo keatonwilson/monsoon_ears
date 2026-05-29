@@ -16,7 +16,9 @@ dependencies = [
 # Pi-only: hardware capture + Whisper. Torch wheel is Linux/arm64/macOS-arm,
 # so Intel-Mac dev installs without this group.
 pi = [
-    "pyrtlsdr>=0.3.0",
+    # Pin pyrtlsdr to the 0.3.x line: 0.4.0 calls rtlsdr_set_dithering, which
+    # isn't in the librtlsdr shipped by Raspberry Pi OS (Debian Trixie).
+    "pyrtlsdr>=0.3.0,<0.4.0",
     "openai-whisper>=20231117",
     "aprs3>=8.0",
 ]

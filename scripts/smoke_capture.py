@@ -40,25 +40,28 @@ def main() -> int:
     total_sec = 30
 
     out_dir = Path("/tmp")
+    label = os.getenv("CAPTURE_LABEL", f"{freq_mhz:.4f}".replace(".", "_"))
     capture = AnalogCapture(freq_mhz=freq_mhz)
+    print(f"capturing {total_sec}s @ {freq_mhz:.4f} MHz (label={label})")
 
     start = time.time()
     chunk_idx = 0
     try:
         while time.time() - start < total_sec:
-            audio = capture.read_chunk(chunk_sec)
-            if audio is None:
-                print(f"chunk {chunk_idx}: squelched")
-            else:
-                rms = float(np.sqrt(np.mean(audio ** 2)))
-                cleaned = preprocess_radio_audio(audio)
-                path = out_dir / f"chunk_{chunk_idx:02d}.wav"
-                write_wav(path, cleaned)
-                print(f"chunk {chunk_idx}: rms={rms:.4f} -> {path}")
+            chunk = capture.read_chunk_full(chunk_sec)
+            cleaned = preprocess_radio_audio(chunk.audio)
+            # Write every chunk during calibration so we can listen to noise too.
+            path = out_dir / f"smoke_{label}_{chunk_idx:02d}.wav"
+            write_wav(path, cleaned)
+            tag = "SQUELCHED" if chunk.squelched else "PASS"
+            print(
+                f"chunk {chunk_idx:02d}: iq_power={chunk.iq_power:.5f} "
+                f"audio_rms={chunk.audio_rms:.4f} {tag} -> {path.name}"
+            )
             chunk_idx += 1
     finally:
         capture.close()
-    print(f"done. wrote chunks to {out_dir}/chunk_*.wav")
+    print(f"done. wrote chunks to {out_dir}/smoke_{label}_*.wav")
     return 0
 
 
