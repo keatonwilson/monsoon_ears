@@ -1,0 +1,27 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Local env / secrets
+.env
+.env.local
+
+# Runtime data
+data/
+*.db
+*.db-wal
+*.db-shm
+*.wav
+
+# Whisper model cache (if downloaded into repo)
+models_cache/
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
