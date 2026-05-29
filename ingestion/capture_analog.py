@@ -16,6 +16,7 @@ only the demod output structure can. Hence: PASS when audio_rms is *below*
 from __future__ import annotations
 
 import logging
+import time
 from dataclasses import dataclass
 from typing import Iterator, Optional
 
@@ -75,6 +76,23 @@ class AnalogCapture:
             freq_mhz, sample_rate, gain, self._decim1, self._decim2,
             noise_floor_rms,
         )
+
+    # The R820T's PLL needs a few milliseconds to settle after a center-freq
+    # change. The first post-retune read can include artifacts; we discard a
+    # small number of samples on the next read_chunk_full to compensate.
+    RETUNE_SETTLE_SEC = 0.04
+
+    def retune(self, freq_mhz: float) -> None:
+        """Change center frequency without recreating the SDR."""
+        self.freq_mhz = freq_mhz
+        self.sdr.center_freq = int(freq_mhz * 1e6)
+        time.sleep(self.RETUNE_SETTLE_SEC)
+        # Flush a small burst of IQ to discard PLL settling transient.
+        try:
+            self.sdr.read_samples(2048)
+        except Exception:  # noqa: BLE001
+            pass
+        logger.info("RTL-SDR retuned to %.4f MHz", freq_mhz)
 
     def close(self) -> None:
         try:
