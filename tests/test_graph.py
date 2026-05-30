@@ -94,7 +94,7 @@ def test_graph_alert_node_pushes_ntfy_on_high_severity(temp_db, monkeypatch):
 
     row_id = insert_transcription(TranscriptionEvent(
         timestamp=datetime.now(timezone.utc),
-        frequency_mhz=154.370, raw_text="structure fire major", duration_sec=2.0,
+        frequency_mhz=154.370, raw_text="Engine 4 respond to structure fire at 5502 East 22nd Street", duration_sec=2.0,
     ))
 
     def fake_classify(event, **kwargs):
