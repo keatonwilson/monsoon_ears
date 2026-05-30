@@ -39,6 +39,14 @@ def _setup_logging() -> None:
     )
 
 
+# Plausible Tucson-area surface readings. A value outside these bounds means
+# the packet was mis-decoded (or a sensor faulted); we drop it rather than feed
+# garbage into the map tooltips and the Sonnet monsoon digest.
+_TEMP_F_MIN, _TEMP_F_MAX = -40.0, 140.0
+_RAIN_IN_MAX = 30.0  # a single hour over the all-time US record is impossible
+_WIND_MPH_MAX = 250.0
+
+
 def _c_to_f(c: float | None) -> float | None:
     return None if c is None else c * 9.0 / 5.0 + 32.0
 
@@ -51,18 +59,30 @@ def _mps_to_mph(mps: float | None) -> float | None:
     return None if mps is None else mps * 2.2369362920544
 
 
+def _sane(value: float | None, lo: float, hi: float) -> float | None:
+    """Return value if within [lo, hi], else None (drop the bad reading)."""
+    if value is None:
+        return None
+    return value if lo <= value <= hi else None
+
+
 def packet_to_event(packet: dict) -> APRSEvent | None:
     """Translate an aprslib packet dict to APRSEvent. Returns None if unparseable.
 
-    aprslib normalizes weather fields to metric (°C, mm, m/s) regardless of
-    the wire encoding — convert to imperial here so the column names match
-    what's stored.
+    Verified against aprslib 0.7.2: it parses the wire weather fields (which APRS
+    encodes in °F / hundredths-of-inch / mph) and *normalizes them to metric*
+    (°C, mm, m/s) before handing them to us — so the conversions below are the
+    correct round-trip back to the imperial units our columns store. We also
+    sanity-clamp each field so a mis-decoded packet can't poison the dashboard
+    or the monsoon digest.
     """
     callsign = packet.get("from")
     if not callsign:
         return None
 
     weather = packet.get("weather") or {}
+    rain_in = _mm_to_in(weather.get("rain_1h"))
+    wind_mph = _mps_to_mph(weather.get("wind_speed"))
     return APRSEvent(
         timestamp=datetime.now(timezone.utc),
         callsign=str(callsign),
@@ -70,9 +90,9 @@ def packet_to_event(packet: dict) -> APRSEvent | None:
         lon=packet.get("longitude"),
         symbol=packet.get("symbol"),
         comment=(packet.get("comment") or "")[:512] or None,
-        temp_f=_c_to_f(weather.get("temperature")),
-        rainfall_in=_mm_to_in(weather.get("rain_1h")),
-        wind_mph=_mps_to_mph(weather.get("wind_speed")),
+        temp_f=_sane(_c_to_f(weather.get("temperature")), _TEMP_F_MIN, _TEMP_F_MAX),
+        rainfall_in=_sane(rain_in, 0.0, _RAIN_IN_MAX),
+        wind_mph=_sane(wind_mph, 0.0, _WIND_MPH_MAX),
     )
 
 

@@ -1,0 +1,114 @@
+[
+  {
+    "category": "standard_wx",
+    "note": "Typical Tucson day. aprslib normalizes wire t072 (72F) -> 22.22C; rain r010 (0.10in) -> 2.54mm; wind 15mph -> 6.7m/s.",
+    "packet": {
+      "from": "N7XYZ-13",
+      "latitude": 32.21,
+      "longitude": -110.95,
+      "symbol": "_",
+      "comment": "Tucson midtown wx station",
+      "weather": {"temperature": 22.22, "rain_1h": 2.54, "wind_speed": 6.7}
+    }
+  },
+  {
+    "category": "hot_summer",
+    "note": "Pre-monsoon afternoon, 109F -> 42.78C.",
+    "packet": {
+      "from": "K7HOT-1",
+      "latitude": 32.25,
+      "longitude": -111.0,
+      "symbol": "_",
+      "comment": "east side",
+      "weather": {"temperature": 42.78, "rain_1h": 0.0, "wind_speed": 2.2}
+    }
+  },
+  {
+    "category": "cwop_complete",
+    "note": "CWOP positionless complete wx report; aprslib still returns metric (t077 -> 25.0C).",
+    "packet": {
+      "from": "CW1234",
+      "latitude": 32.18,
+      "longitude": -110.88,
+      "symbol": "_",
+      "comment": "CWOP",
+      "weather": {"temperature": 25.0, "rain_1h": 0.0, "wind_speed": 1.8}
+    }
+  },
+  {
+    "category": "monsoon_rain",
+    "note": "Active cell: 1 inch/hr -> 25.4mm, gusty.",
+    "packet": {
+      "from": "W7RAIN-2",
+      "latitude": 32.3,
+      "longitude": -110.8,
+      "symbol": "_",
+      "comment": "foothills",
+      "weather": {"temperature": 24.0, "rain_1h": 25.4, "wind_speed": 13.4}
+    }
+  },
+  {
+    "category": "negative_temp",
+    "note": "Cold winter morning, -5F -> -20.56C. Within the sane range.",
+    "packet": {
+      "from": "AE7CLD",
+      "latitude": 32.4,
+      "longitude": -110.7,
+      "symbol": "_",
+      "comment": "mt lemmon",
+      "weather": {"temperature": -20.56, "rain_1h": 0.0, "wind_speed": 4.5}
+    }
+  },
+  {
+    "category": "garbage_temp_high",
+    "note": "Mis-decoded packet: absurd temperature. After C->F this is ~392F and must be clamped to None.",
+    "packet": {
+      "from": "BAD7TMP",
+      "latitude": 32.2,
+      "longitude": -110.9,
+      "symbol": "_",
+      "comment": "sensor fault",
+      "weather": {"temperature": 200.0, "rain_1h": 0.0, "wind_speed": 0.0}
+    }
+  },
+  {
+    "category": "position_only",
+    "note": "Mobile tracker, no weather payload.",
+    "packet": {
+      "from": "W7ABC-9",
+      "latitude": 32.2,
+      "longitude": -111.0,
+      "symbol": ">"
+    }
+  },
+  {
+    "category": "no_callsign",
+    "note": "Unparseable origin; packet_to_event must return None.",
+    "packet": {
+      "latitude": 32.0,
+      "longitude": -110.0,
+      "weather": {"temperature": 20.0}
+    }
+  },
+  {
+    "category": "long_comment",
+    "note": "Comment longer than the 512-char column; must be truncated.",
+    "packet": {
+      "from": "AB1CD",
+      "latitude": 32.22,
+      "longitude": -110.97,
+      "comment": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  },
+  {
+    "category": "rain_no_temp",
+    "note": "Rain gauge only, no temperature field.",
+    "packet": {
+      "from": "N7RNG",
+      "latitude": 32.27,
+      "longitude": -110.92,
+      "symbol": "_",
+      "weather": {"rain_1h": 5.08, "wind_speed": 3.0}
+    }
+  }
+]

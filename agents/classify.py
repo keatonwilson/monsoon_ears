@@ -14,6 +14,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from agents.hallucination import looks_like_hallucination
 from config.frequencies import ANALOG_FM
 from models.schemas import ClassifiedEvent, TranscriptionEvent, TransmissionType
 
@@ -66,7 +67,21 @@ def classify_event(
     client=None,
     model: Optional[str] = None,
 ) -> ClassifiedEvent:
-    """Classify a transcription. Pass `client` to inject a mock in tests."""
+    """Classify a transcription. Pass `client` to inject a mock in tests.
+
+    Pre-gate: text that looks like a Whisper hallucination is short-circuited to
+    UNKNOWN with confidence 0.0 — no LLM call, and downstream `extract`/`alert`
+    can't escalate a ghost transmission to a false HIGH-severity push.
+    """
+    if looks_like_hallucination(event.raw_text):
+        logger.debug("classify pre-gate dropped hallucination: %r", (event.raw_text or "")[:60])
+        return ClassifiedEvent(
+            **event.model_dump(),
+            transmission_type=TransmissionType.UNKNOWN,
+            confidence=0.0,
+            language="en",
+        )
+
     client = client if client is not None else _get_client()
     model_name = model or os.getenv("CLASSIFY_MODEL", "claude-haiku-4-5-20251001")
 

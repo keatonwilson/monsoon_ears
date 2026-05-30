@@ -1,0 +1,187 @@
+[
+  {
+    "id": 1,
+    "category": "ems",
+    "raw_text": "Med 843, respond code 2, traffic collision at 205 West Irvington Road",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.0
+  },
+  {
+    "id": 2,
+    "category": "fire",
+    "raw_text": "Engine 4 respond to a reported structure fire at 5502 East 22nd Street",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 3.5
+  },
+  {
+    "id": 3,
+    "category": "fire",
+    "raw_text": "Battalion 1 on scene, working fire, requesting a second alarm",
+    "frequency_mhz": 154.4,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 3.0
+  },
+  {
+    "id": 4,
+    "category": "ems",
+    "raw_text": "Rescue 12 transporting one patient to Banner UMC, code 3",
+    "frequency_mhz": 153.815,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 2.8
+  },
+  {
+    "id": 5,
+    "category": "flood_control",
+    "raw_text": "Flood control reports water over the roadway at the Rillito wash crossing",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.2
+  },
+  {
+    "id": 6,
+    "category": "flood_control",
+    "raw_text": "Advise units, Pantano wash is running, avoid the Speedway crossing",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 3.6
+  },
+  {
+    "id": 7,
+    "category": "weather",
+    "raw_text": "The National Weather Service in Tucson has issued a flash flood warning until 8 PM",
+    "frequency_mhz": 162.3975,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 5.0
+  },
+  {
+    "id": 8,
+    "category": "weather",
+    "raw_text": "A severe thunderstorm warning remains in effect for eastern Pima County",
+    "frequency_mhz": 162.3975,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.4
+  },
+  {
+    "id": 9,
+    "category": "ham",
+    "raw_text": "W7MST repeater, this is KD7ABC testing, you are full quieting into Tucson",
+    "frequency_mhz": 146.82,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 3.2
+  },
+  {
+    "id": 10,
+    "category": "ems",
+    "raw_text": "Engine 31 and Med 31 dispatched for a fall victim at 4400 North Oracle Road",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.1
+  },
+  {
+    "id": 11,
+    "category": "fire",
+    "raw_text": "Northwest command, we have smoke showing from the second floor, all clear on the evacuation",
+    "frequency_mhz": 154.25,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.8
+  },
+  {
+    "id": 12,
+    "category": "ems",
+    "raw_text": "AMR 22 clear from the hospital, available for the next call",
+    "frequency_mhz": 153.815,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 2.5
+  },
+  {
+    "id": 13,
+    "category": "fire",
+    "raw_text": "Engine 7 responding to a vehicle fire on Interstate 10 near Ina Road",
+    "frequency_mhz": 154.4,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 3.3
+  },
+  {
+    "id": 14,
+    "category": "flood_control",
+    "raw_text": "Tanque Verde wash is at three feet and rising, close the low water crossing",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.0
+  },
+  {
+    "id": 15,
+    "category": "weather",
+    "raw_text": "Quarter inch of rain reported at the airport in the last hour, more storms developing",
+    "frequency_mhz": 162.3975,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 4.6
+  },
+  {
+    "id": 16,
+    "category": "hallucination",
+    "raw_text": "Thank you for watching, please don't forget to like and subscribe.",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 2.0,
+    "note": "YouTube-transcript leakage; caught by phrase match"
+  },
+  {
+    "id": 17,
+    "category": "hallucination",
+    "raw_text": "♪ ♪ ♪",
+    "frequency_mhz": 146.82,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 1.4,
+    "note": "music markers on noise; caught by word-count floor"
+  },
+  {
+    "id": 18,
+    "category": "hallucination",
+    "raw_text": "字幕志愿者",
+    "frequency_mhz": 154.25,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 1.7,
+    "note": "CJK bleed-through; caught by CJK regex"
+  },
+  {
+    "id": 27,
+    "category": "hallucination",
+    "raw_text": "Fire. Fire. Fire. Thanks for watching!",
+    "frequency_mhz": 154.37,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 1.9,
+    "note": "id=27 case: ghost text that the extractor rated HIGH severity; caught by phrase match so it must never produce a HIGH alert"
+  },
+  {
+    "id": 20,
+    "category": "hallucination",
+    "raw_text": "You",
+    "frequency_mhz": 154.4,
+    "source": "analog",
+    "talkgroup_id": null,
+    "duration_sec": 0.9,
+    "note": "lone token on key-up blip; caught by word-count floor"
+  }
+]

@@ -91,6 +91,27 @@ def test_evaluate_alert_suppresses_hallucinated_high_severity():
     assert "low-quality" in (decision.reason or "")
 
 
+def test_evaluate_alert_suppresses_low_confidence_high_severity():
+    """HIGH severity riding in on a low-confidence classification is suppressed,
+    even when the transcript itself reads like a plausible dispatch."""
+    decision = evaluate_alert(_extracted(
+        severity=Severity.HIGH,
+        confidence=0.1,
+        raw_text="Engine 4 respond to structure fire at 5502 East 22nd Street",
+    ))
+    assert decision.should_alert is False
+    assert "confidence" in (decision.reason or "")
+
+
+def test_evaluate_alert_high_severity_fires_with_confidence():
+    decision = evaluate_alert(_extracted(
+        severity=Severity.HIGH,
+        confidence=0.9,
+        raw_text="Engine 4 respond to structure fire at 5502 East 22nd Street",
+    ))
+    assert decision.should_alert is True
+
+
 # --- push_ntfy ---------------------------------------------------------------
 
 
