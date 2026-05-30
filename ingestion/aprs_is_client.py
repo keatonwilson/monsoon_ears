@@ -39,8 +39,25 @@ def _setup_logging() -> None:
     )
 
 
+def _c_to_f(c: float | None) -> float | None:
+    return None if c is None else c * 9.0 / 5.0 + 32.0
+
+
+def _mm_to_in(mm: float | None) -> float | None:
+    return None if mm is None else mm / 25.4
+
+
+def _mps_to_mph(mps: float | None) -> float | None:
+    return None if mps is None else mps * 2.2369362920544
+
+
 def packet_to_event(packet: dict) -> APRSEvent | None:
-    """Translate an aprslib packet dict to APRSEvent. Returns None if unparseable."""
+    """Translate an aprslib packet dict to APRSEvent. Returns None if unparseable.
+
+    aprslib normalizes weather fields to metric (°C, mm, m/s) regardless of
+    the wire encoding — convert to imperial here so the column names match
+    what's stored.
+    """
     callsign = packet.get("from")
     if not callsign:
         return None
@@ -53,10 +70,9 @@ def packet_to_event(packet: dict) -> APRSEvent | None:
         lon=packet.get("longitude"),
         symbol=packet.get("symbol"),
         comment=(packet.get("comment") or "")[:512] or None,
-        # APRS spec puts these in imperial. aprslib carries them through.
-        temp_f=weather.get("temperature"),
-        rainfall_in=weather.get("rain_1h"),
-        wind_mph=weather.get("wind_speed"),
+        temp_f=_c_to_f(weather.get("temperature")),
+        rainfall_in=_mm_to_in(weather.get("rain_1h")),
+        wind_mph=_mps_to_mph(weather.get("wind_speed")),
     )
 
 

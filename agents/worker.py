@@ -15,12 +15,14 @@ import os
 import signal
 import sys
 import time
+from datetime import datetime, timedelta, timezone
 
 from dotenv import load_dotenv
 
 from agents.alert import monsoon_digest
 from agents.graph import run_for_row
-from db.queries import fetch_unclassified
+from agents.summarize import summarize_pending
+from db.queries import close_idle_threads, fetch_unclassified
 
 logger = logging.getLogger(__name__)
 
@@ -45,13 +47,16 @@ def main() -> int:
     from apscheduler.schedulers.background import BackgroundScheduler
 
     scheduler = BackgroundScheduler(timezone="UTC")
+    # APScheduler quirk: next_run_time=None on add_job means "never fire."
+    # To skip the boot-time fire but still run on the interval, pass an
+    # explicit first run one interval out.
+    first_run = datetime.now(timezone.utc) + timedelta(minutes=digest_min)
     scheduler.add_job(
         monsoon_digest,
         trigger="interval",
         minutes=digest_min,
         id="monsoon_digest",
-        # Don't run the digest on startup — wait one interval so we have data.
-        next_run_time=None,
+        next_run_time=first_run,
     )
     scheduler.start()
     log.info(
@@ -94,6 +99,19 @@ def main() -> int:
                     )
                 except Exception:  # noqa: BLE001 — keep the worker alive
                     log.exception("error processing row %d; will retry next poll", row.id)
+
+            # Close any threads whose newest event is older than the gap
+            # threshold, then summarize the freshly-closed ones.
+            try:
+                just_closed = close_idle_threads()
+                if just_closed:
+                    log.info("closed %d idle thread(s): %s", len(just_closed), just_closed)
+                processed = summarize_pending(limit=10)
+                if processed:
+                    log.info("summarized %d thread(s)", processed)
+            except Exception:  # noqa: BLE001
+                log.exception("thread maintenance error; will retry next poll")
+
             time.sleep(poll_sec)
     finally:
         if scheduler.running:

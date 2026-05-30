@@ -14,7 +14,7 @@ It is an exercise in three things at once: low-level DSP on commodity hardware, 
 | 01.5 | op25 install for P25 Phase II trunked digital | ⏳ Deferred — analog pipeline validated first |
 | 02 | Capture → squelch → VAD → Whisper → SQLite | ✅ Done |
 | 03 | Multi-freq scanner + LangGraph classify/extract/alert + APRS-IS + Ntfy push | ✅ Done |
-| 04 | FastAPI + Streamlit dashboard | ⏳ Planned |
+| 04 | FastAPI + Streamlit dashboard with live feed, Folium map, monsoon tab, NL→SQL | ✅ Done |
 | 05 | Polish, systemd services, demo | ⏳ Planned |
 
 Live captures already include verified Tucson Rural Metro / AMR dispatch traffic — e.g. `"Med 843, respond code 2, TC unknown, 205 West Irvington Road"` (a real EMS dispatch to a traffic collision, structured-extracted as `units=['Med 843']`, `locations=['205 W Irvington Rd']`, `severity=medium`) and `"Heart problem, 55."` (cardiac call, auto-classified as `severity=high` → Ntfy push delivered to phone). On a non-monsoon test day the Sonnet 4.6 digest agent correctly read 27 voice rows plus 13 APRS weather station packets, tabulated rainfall (`0.00 in` across the sensor network), and concluded "flash flood risk is negligible at this time" — cross-source reasoning with citations.
@@ -119,15 +119,48 @@ uv run python -m ingestion.runner_analog
 
 First run downloads the Whisper `small` model (~244 MB) to `~/.cache/whisper/` — subsequent runs reuse it. Cold transcription cycle is ~22 s for an 8 s chunk on Pi 5 CPU (~1.8× real-time). The `pi` extras include `pyrtlsdr`, `openai-whisper`, `webrtcvad`, and `aprslib`.
 
-For the full Phase 03 stack, run three processes (each in its own terminal or as a systemd service in Phase 05):
+For the full stack, run five processes on the Pi (Phase 05 wraps these in systemd):
 
 ```bash
-uv run python -m ingestion.runner_analog       # Scanner → Whisper → DB
-uv run python -m agents.worker                 # Classify → extract → alert
-APRS_IS_ENABLED=true uv run python -m ingestion.aprs_is_client   # APRS-IS feed
+# Ingestion
+uv run python -m ingestion.runner_analog                          # Scanner → Whisper → DB
+uv run python -m agents.worker                                    # Classify → extract → alert
+APRS_IS_ENABLED=true uv run python -m ingestion.aprs_is_client    # APRS-IS feed
+
+# Read interface
+./scripts/run_api.sh                                              # FastAPI :8000
+./scripts/run_dashboard.sh                                        # Streamlit :8501
 ```
 
-The agent worker also runs the Sonnet 4.6 monsoon-correlation digest every `DIGEST_INTERVAL_MIN` minutes via APScheduler.
+Then any device on the LAN points its browser at `http://monsoon-ears.local:8501`. The agent worker also runs the Sonnet 4.6 monsoon-correlation digest every `DIGEST_INTERVAL_MIN` minutes via APScheduler — the dashboard's monsoon tab surfaces its most recent verdict.
+
+### Port table
+
+| Port | Process | Role |
+|---|---|---|
+| 8000 | FastAPI / uvicorn | Read-only JSON API (`/events`, `/aprs`, `/summary`, `/alerts`, `/query`) |
+| 8501 | Streamlit | Browser dashboard (live feed, Folium map, 24 h activity, monsoon tab, NL→SQL) |
+
+### Natural-language query box
+
+The dashboard's "Ask" tab posts your question to `/query`. Behind the scenes:
+
+1. Haiku 4.5 rewrites the question into a single `SELECT` (structured output via `instructor`).
+2. `sqlglot` parses the candidate. Anything that isn't a single `SELECT` over `{transcription_events, aprs_events, alerts}` is rejected (`DROP`, `INSERT`, `UPDATE`, `PRAGMA`, `ATTACH`, multi-statement, unknown tables — see [`api/nl_sql.py`](./api/nl_sql.py)).
+3. `LIMIT 200` is enforced.
+4. SQLite executes via a separate read-only connection (`?mode=ro&uri=true`) with a 5-second watchdog.
+
+The generated SQL is shown in the UI so you can audit what ran.
+
+### Wash overlay
+
+The map tab renders Pima County Regional Flood Control District's major-wash polylines as an overlay. Refresh with:
+
+```bash
+uv run python scripts/fetch_washes.py
+```
+
+(Output `data/washes.geojson` is committed.)
 
 ### On a development machine (tests + DSP only)
 
@@ -182,18 +215,30 @@ monsoon-ears/
 ├── agents/              # LangGraph DAG + agent worker
 │   ├── classify.py          # Haiku 4.5 → TransmissionType + confidence
 │   ├── extract.py           # Haiku 4.5 → locations/units/severity + geocode
-│   ├── alert.py             # Rule eval, Ntfy push, Sonnet monsoon digest
+│   ├── alert.py             # Rule eval, Ntfy push, Sonnet monsoon digest, persistence
 │   ├── graph.py             # LangGraph StateGraph (classify → extract → alert)
 │   └── worker.py            # Poll DB, run graph, run scheduled digest
+├── api/                 # FastAPI read interface
+│   ├── main.py              # app + CORS + router wiring
+│   ├── deps.py              # read-only engine, settings
+│   ├── nl_sql.py            # Haiku → SELECT → sqlglot validator → ro execute
+│   └── routes/              # /events, /aprs, /summary, /alerts, /query
+├── dashboard/           # Streamlit dashboard
+│   ├── app.py               # tab composition
+│   ├── api_client.py        # tiny requests wrapper around FastAPI
+│   ├── style.py             # color palette + chip helpers
+│   └── tabs/                # one module per tab
 ├── models/schemas.py    # Pydantic event models (Transcription/Classified/Extracted/APRS/Alert)
-├── db/                  # SQLModel + WAL SQLite + agent UPDATE helpers
-├── api/                 # (Phase 04) FastAPI
-├── dashboard/           # (Phase 04) Streamlit + Folium
+├── db/                  # SQLModel + WAL SQLite + alerts table + UPDATE helpers
+├── data/washes.geojson  # Pima County wash polylines (committed)
 ├── config/frequencies.py
 ├── scripts/
 │   ├── sync_to_pi.sh        # rsync helper
-│   └── smoke_capture.py     # 30-sec capture-only sanity check
-├── tests/               # pytest, 48 tests passing as of Phase 03
+│   ├── smoke_capture.py     # 30-sec capture-only sanity check
+│   ├── fetch_washes.py      # Pima County GIS → data/washes.geojson
+│   ├── run_api.sh           # uvicorn entrypoint
+│   └── run_dashboard.sh     # streamlit entrypoint
+├── tests/               # pytest, 74 tests passing as of Phase 04
 └── .claude/             # Long-form spec + Claude Code build plans
 ```
 
@@ -219,12 +264,14 @@ monsoon-ears/
 - ✅ APRS-IS feed via `aprslib` (internet-aggregated APRS, no second dongle)
 - ✅ 48 tests passing on Mac and Pi
 
-### Phase 04 — FastAPI + Streamlit dashboard
+### Phase 04 — FastAPI + Streamlit dashboard ✅
 
-- `GET /events`, `/summary`, `/alerts`, `/aprs`
-- Streamlit live feed (auto-refresh), Folium map with incident pins + APRS station markers
-- Monsoon tab: APRS rainfall by station, active flood-control calls, wash GeoJSON overlay
-- NL → text-to-SQL query box
+- ✅ FastAPI on `:8000` with `/events`, `/events/{id}`, `/aprs`, `/summary`, `/alerts`, `/query`
+- ✅ Streamlit on `:8501` — live feed (auto-refresh), Folium map with color-coded incidents + APRS station markers, 24 h altair activity chart, monsoon correlation tab
+- ✅ Pima County wash polylines overlay (32 features, fetched from `gisdata.pima.gov`)
+- ✅ NL→SQL query box backed by Haiku 4.5 + `sqlglot` validator + read-only SQLite
+- ✅ Alerts persisted to a new `alerts` table so the dashboard shows history without re-calling Sonnet
+- ✅ 48 → 74 tests passing
 
 ### Phase 05 — Polish
 

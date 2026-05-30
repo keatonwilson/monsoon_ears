@@ -16,7 +16,7 @@ from agents.alert import evaluate_alert, push_ntfy
 from agents.classify import classify_event
 from agents.extract import extract_event
 from db.database import TranscriptionEventRow, get_session
-from db.queries import update_classification, update_extraction
+from db.queries import insert_alert, update_classification, update_extraction
 from models.schemas import (
     AlertDecision,
     ClassifiedEvent,
@@ -54,6 +54,7 @@ def alert_node(state: GraphState) -> dict:
     update_extraction(row_id, extracted)
     decision = evaluate_alert(extracted)
     if decision.should_alert:
+        insert_alert(source="rule", decision=decision, transcription_id=row_id)
         push_ntfy(
             title=f"[Monsoon Ears] {decision.reason or 'alert'}",
             body=decision.summary or extracted.raw_text[:200],

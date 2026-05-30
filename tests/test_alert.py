@@ -7,6 +7,7 @@ import pytest
 from agents.alert import (
     DigestResponse,
     evaluate_alert,
+    looks_like_hallucination,
     monsoon_digest,
     push_ntfy,
 )
@@ -37,16 +38,57 @@ def test_evaluate_alert_medium_severity_does_not_fire():
 
 
 def test_evaluate_alert_high_severity_fires():
-    decision = evaluate_alert(_extracted(severity=Severity.HIGH, raw_text="structure fire major"))
+    decision = evaluate_alert(_extracted(
+        severity=Severity.HIGH,
+        raw_text="Engine 4 respond to structure fire at 5502 East 22nd Street",
+    ))
     assert decision.should_alert is True
     assert decision.reason == "severity=HIGH"
     assert "structure fire" in (decision.summary or "")
 
 
 def test_evaluate_alert_road_closure_fires():
-    decision = evaluate_alert(_extracted(road_closure=True, raw_text="River Road closed at Campbell"))
+    decision = evaluate_alert(_extracted(
+        road_closure=True,
+        raw_text="River Road closed at Campbell due to flooding over the wash",
+    ))
     assert decision.should_alert is True
     assert "road_closure" in (decision.reason or "")
+
+
+# --- Whisper hallucination gate ---------------------------------------------
+
+
+@pytest.mark.parametrize("text", [
+    "potatoes",
+    "Yeti Planet",
+    "Ah You",
+    "life.",
+    "diox",
+    "Images in the description",
+    "Thanks for watching!",
+    "Meth準備 respond 102wy",  # CJK leakage
+    "",
+    None,
+])
+def test_hallucination_gate_blocks_garbage(text):
+    assert looks_like_hallucination(text) is True
+
+
+@pytest.mark.parametrize("text", [
+    "MADS-882 respond to 5502 East 22nd Street with Tucson Fire",
+    "Med Day for 6, respond to 8307 south of Placides and Ardo with two's on fire",
+    "Engine 4 responding code 3 to River Road and Campbell",
+    "Rillito wash flooded over at La Cholla; road closed",
+])
+def test_hallucination_gate_allows_real_dispatches(text):
+    assert looks_like_hallucination(text) is False
+
+
+def test_evaluate_alert_suppresses_hallucinated_high_severity():
+    decision = evaluate_alert(_extracted(severity=Severity.HIGH, raw_text="potatoes"))
+    assert decision.should_alert is False
+    assert "low-quality" in (decision.reason or "")
 
 
 # --- push_ntfy ---------------------------------------------------------------

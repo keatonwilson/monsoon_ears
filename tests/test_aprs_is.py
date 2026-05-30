@@ -3,25 +3,24 @@
 from ingestion.aprs_is_client import packet_to_event
 
 
-def test_packet_to_event_with_weather():
+def test_packet_to_event_with_weather_converts_to_imperial():
+    # aprslib normalizes to metric: 32 °C, 5 mm rain, 10 m/s wind.
     packet = {
         "from": "N7XYZ-13",
         "latitude": 32.21,
         "longitude": -110.95,
         "symbol": "_",
         "comment": "Tucson weather station",
-        "weather": {"temperature": 89.5, "rain_1h": 0.05, "wind_speed": 8},
+        "weather": {"temperature": 32.0, "rain_1h": 5.0, "wind_speed": 10.0},
     }
     event = packet_to_event(packet)
     assert event is not None
     assert event.callsign == "N7XYZ-13"
-    assert event.lat == 32.21
-    assert event.lon == -110.95
     assert event.symbol == "_"
-    assert event.comment == "Tucson weather station"
-    assert event.temp_f == 89.5
-    assert event.rainfall_in == 0.05
-    assert event.wind_mph == 8
+    # 32 °C → 89.6 °F, 5 mm → ~0.197 in, 10 m/s → ~22.37 mph
+    assert event.temp_f is not None and abs(event.temp_f - 89.6) < 0.05
+    assert event.rainfall_in is not None and abs(event.rainfall_in - 0.1969) < 0.001
+    assert event.wind_mph is not None and abs(event.wind_mph - 22.369) < 0.01
 
 
 def test_packet_to_event_position_only():

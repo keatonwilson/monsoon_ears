@@ -62,15 +62,15 @@ def main() -> int:
     chunk_sec = float(os.getenv("CHUNK_DURATION_SEC", 15))
     noise_floor_rms = float(os.getenv("NOISE_FLOOR_RMS", 0.65))
     vad_aggressiveness = int(os.getenv("VAD_AGGRESSIVENESS", 2))
-    vad_min_segment_ms = int(os.getenv("VAD_MIN_SEGMENT_MS", 800))
+    vad_min_segment_ms = int(os.getenv("VAD_MIN_SEGMENT_MS", 1500))
 
     scan_min_priority = os.getenv("SCAN_MIN_PRIORITY", "high")
     probe_sec = float(os.getenv("SCAN_PROBE_SEC", 1.0))
-    hangover_chunks = int(os.getenv("SCAN_HANGOVER_CHUNKS", 1))
+    hangover_chunks = int(os.getenv("SCAN_HANGOVER_CHUNKS", 2))
     max_hold_sec = float(os.getenv("SCAN_MAX_HOLD_SEC", 120.0))
     noaa_freq_mhz = float(os.getenv("NOAA_FREQ_MHZ", 162.3975))
     noaa_interval_min = float(os.getenv("NOAA_VISIT_INTERVAL_MIN", 15.0))
-    noaa_duration_sec = float(os.getenv("NOAA_VISIT_DURATION_SEC", 30.0))
+    noaa_duration_sec = float(os.getenv("NOAA_VISIT_DURATION_SEC", 60.0))
 
     scan_freqs = _scan_list(scan_min_priority)
     if not scan_freqs:
@@ -121,20 +121,34 @@ def main() -> int:
     try:
         for active in scanner.iter_active_chunks(chunk_sec):
             cleaned = preprocess_radio_audio(active.audio, sr=capture.audio_rate)
-            segments = find_speech_segments(
-                cleaned,
-                aggressiveness=vad_aggressiveness,
-                min_segment_ms=vad_min_segment_ms,
-            )
-            if not segments:
-                log.debug("no speech in %.4f MHz chunk", active.frequency.mhz)
-                continue
 
-            for seg in segments:
-                seg_audio = cleaned[seg.start_sample : seg.end_sample]
-                duration_sec = seg_audio.size / capture.audio_rate
+            # NOAA broadcasts continuously; VAD-segmenting it produces a stack of
+            # mid-sentence fragments. For NOAA visits we transcribe the whole
+            # captured window as one block and trust Whisper's own internal VAD.
+            is_noaa = active.frequency.agency == "NOAA"
+            if is_noaa:
+                segments_audio: list[tuple] = [(cleaned, cleaned.size / capture.audio_rate)]
+            else:
+                segs = find_speech_segments(
+                    cleaned,
+                    aggressiveness=vad_aggressiveness,
+                    min_segment_ms=vad_min_segment_ms,
+                )
+                if not segs:
+                    log.debug("no speech in %.4f MHz chunk", active.frequency.mhz)
+                    continue
+                segments_audio = [
+                    (cleaned[s.start_sample : s.end_sample],
+                     (s.end_sample - s.start_sample) / capture.audio_rate)
+                    for s in segs
+                ]
+
+            for seg_audio, duration_sec in segments_audio:
                 text = transcribe(seg_audio, sr=capture.audio_rate)
                 if not text:
+                    continue
+                if duration_sec < 1.0:
+                    log.debug("skipping <1s yielded segment")
                     continue
                 event = TranscriptionEvent(
                     timestamp=datetime.now(timezone.utc),
