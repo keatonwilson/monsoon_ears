@@ -6,6 +6,7 @@ from typing import Any, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
+from config.frequencies import talkgroup_label
 from db.queries import event_by_id, events_since, recent_transcriptions
 
 router = APIRouter(prefix="/events", tags=["events"])
@@ -20,6 +21,7 @@ def _serialize(row) -> dict[str, Any]:
         "duration_sec": row.duration_sec,
         "source": row.source,
         "talkgroup_id": row.talkgroup_id,
+        "talkgroup_label": talkgroup_label(row.talkgroup_id),
         "transmission_type": row.transmission_type,
         "confidence": row.confidence,
         "language": row.language,

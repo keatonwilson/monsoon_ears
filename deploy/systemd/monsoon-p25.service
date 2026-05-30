@@ -1,0 +1,22 @@
+[Unit]
+# P25/PCWIN ingestion. NOT enabled by install_services.sh — op25 must be built
+# on the Pi and confirmed locking PCWIN first (see deploy/op25_setup.md). Once
+# validated, enable by hand:  sudo systemctl enable --now monsoon-p25
+Description=Monsoon Ears — P25/PCWIN ingestion (op25 -> Whisper -> SQLite)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=keaton
+WorkingDirectory=/home/keaton/Documents/projects/monsoon_ears
+EnvironmentFile=/home/keaton/Documents/projects/monsoon_ears/.env
+# Requires P25_WAV_DIR (and optionally OP25_CMD) in .env.
+ExecStart=/home/keaton/.local/bin/uv run --no-sync python -m ingestion.runner_p25
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

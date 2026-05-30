@@ -11,7 +11,7 @@ It is an exercise in three things at once: low-level DSP on commodity hardware, 
 | Phase | Scope | State |
 |---|---|---|
 | 01 | Pi setup, SDR validation, frequency research | ✅ Done |
-| 01.5 | op25 install for P25 Phase II trunked digital | ⏳ Deferred — analog pipeline validated first |
+| 01.5 | op25 install for P25 Phase II trunked digital | 🟡 Software groundwork laid (catalog, op25 config, capture scaffold); awaits on-Pi op25 build |
 | 02 | Capture → squelch → VAD → Whisper → SQLite | ✅ Done |
 | 03 | Multi-freq scanner + LangGraph classify/extract/alert + APRS-IS + Ntfy push | ✅ Done |
 | 04 | FastAPI + Streamlit dashboard with live feed, Folium map, monsoon tab, NL→SQL | ✅ Done |
@@ -79,9 +79,9 @@ flowchart TB
 | 153.815 MHz | Rural Metro EMS Dispatch | Analog FM | Planned |
 | 162.3975 MHz | NOAA Weather Radio Tucson | Analog FM | ✅ Validated (calibration source) |
 | 144.390 MHz | APRS 2m national | Packet (AFSK1200) | ⏳ Awaits 2nd dongle |
-| 853.625 MHz | PCWIN Simulcast A control channel | P25 Phase II | ⏳ Awaits op25 install |
+| 853.625 MHz | PCWIN Simulcast A control channel | P25 Phase II | 🟡 Config + capture scaffold ready; awaits on-Pi op25 build |
 
-Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC operate on **PCWIN** (Project 25 Phase II trunked digital). Tucson PD and Marana PD talkgroups are encrypted and out of scope. Verified frequencies and talkgroup IDs are in [`config/frequencies.py`](./config/frequencies.py) and [`.claude/plan.md`](./.claude/plan.md).
+Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC operate on **PCWIN** (Project 25 Phase II trunked digital). Tucson PD and Marana PD talkgroups are encrypted and out of scope. Verified frequencies and the priority talkgroup catalog are in [`config/frequencies.py`](./config/frequencies.py) (`PCWIN`, `PCWIN_TALKGROUPS`); the op25 build/run runbook is [`deploy/op25_setup.md`](./deploy/op25_setup.md).
 
 ## Hardware
 

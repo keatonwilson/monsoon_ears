@@ -12,6 +12,14 @@ def _format_timestamp(iso: str | None) -> str:
     return fmt_az(iso)
 
 
+def _channel_label(row: dict) -> str:
+    """Frequency for analog, talkgroup for P25."""
+    if row.get("source") == "p25":
+        label = row.get("talkgroup_label") or f"TG {row.get('talkgroup_id')}"
+        return f"P25 · {label}"
+    return f"{row['frequency_mhz']:.4f} MHz"
+
+
 def render(client: APIClient) -> None:
     st.subheader("Recent transmissions")
     col1, col2, col3 = st.columns([1, 1, 2])
@@ -52,7 +60,7 @@ def render(client: APIClient) -> None:
         cols[1].caption(_format_timestamp(row["timestamp"]))
         chips = type_chip(row.get("transmission_type")) + severity_chip(row.get("severity"))
         cols[2].markdown(f"{chips} {row['raw_text']}", unsafe_allow_html=True)
-        cols[3].caption(f"{row['frequency_mhz']:.4f} MHz · {row['duration_sec']:.1f}s")
+        cols[3].caption(f"{_channel_label(row)} · {row['duration_sec']:.1f}s")
         with st.expander("Details"):
             d = {
                 "locations": row.get("locations"),
