@@ -113,3 +113,14 @@ def test_extract_prompt_seeds_tucson_washes():
     assert "Rillito" in prompt
     assert "Pantano" in prompt
     assert "TC (traffic collision)" in prompt
+
+
+def test_extract_includes_raw_text_for_fixture_samples(transcripts_by_category):
+    """Each flood-control fixture's transcript reaches the extractor prompt."""
+    response = ExtractResponse()
+    for rec in transcripts_by_category("flood_control"):
+        classified = _classified(rec["raw_text"])
+        client = FakeClient(response)
+        extract_event(classified, client=client, skip_geocode=True)
+        prompt = client.messages.calls[0]["messages"][0]["content"]
+        assert rec["raw_text"] in prompt

@@ -15,65 +15,17 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from typing import Optional
 
 from pydantic import BaseModel
 
+# `looks_like_hallucination` is re-exported here for backwards compatibility —
+# it used to live in this module before being shared with the classify stage.
+from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
 from db.queries import insert_alert, recent_aprs, recent_flood_events
 from models.schemas import AlertDecision, ExtractedEvent, Severity
 
 logger = logging.getLogger(__name__)
-
-
-# --- Whisper hallucination gate ---------------------------------------------
-
-# Whisper occasionally invents fluent-sounding fragments from FM noise: short
-# nonsensical phrases ("potatoes", "Yeti Planet"), YouTube boilerplate, or
-# CJK characters bleeding in from the model's multilingual training. A real
-# Tucson dispatch always carries a unit number, address, or street name —
-# i.e. at least one digit OR enough words to be more than a stray hallucinated
-# token.
-
-_CJK_RE = re.compile(r"[　-鿿가-힯]")
-_DIGIT_RE = re.compile(r"\d")
-_HALLUCINATION_PHRASES = {
-    # Whisper's well-known YouTube-transcript leakage.
-    "thanks for watching",
-    "subscribe",
-    "like and subscribe",
-    "images in the description",
-    "link in the description",
-}
-
-_MIN_ALERT_WORDS = 5  # below this, almost always Whisper noise
-
-
-def looks_like_hallucination(raw_text: Optional[str]) -> bool:
-    """Heuristic: would a real dispatch ever look like this?
-
-    True ⇒ skip the alert. Real dispatches name a unit/address/street, so we
-    require either >=5 word tokens with a digit somewhere, or >=8 word tokens
-    without one. Anything containing CJK or known YouTube boilerplate is out.
-    """
-    if not raw_text:
-        return True
-    text = raw_text.strip()
-    if not text:
-        return True
-    if _CJK_RE.search(text):
-        return True
-    lowered = text.lower()
-    if any(p in lowered for p in _HALLUCINATION_PHRASES):
-        return True
-    words = text.split()
-    if len(words) < _MIN_ALERT_WORDS:
-        return True
-    # Real dispatches almost always have an address number or unit ID. If we
-    # got 5–7 words and zero digits, that's usually still noise.
-    if len(words) < 8 and not _DIGIT_RE.search(text):
-        return True
-    return False
 
 
 # --- Rule-based alert --------------------------------------------------------
@@ -82,13 +34,20 @@ def looks_like_hallucination(raw_text: Optional[str]) -> bool:
 def evaluate_alert(extracted: ExtractedEvent) -> AlertDecision:
     """Pure rule: fire if HIGH severity OR an explicit road closure.
 
-    Suppressed when the transcript looks like Whisper hallucination — those
-    are noisy false positives that wake the user's phone for no reason.
+    Two suppression guards stop Whisper ghosts from waking the user's phone:
+    transcripts that look hallucinated, and HIGH-severity tags riding in on a
+    low-confidence classification (the classifier short-circuits obvious ghosts
+    to confidence 0.0, so this also catches whatever the pre-gate flagged).
     """
     if looks_like_hallucination(extracted.raw_text):
         return AlertDecision(
             should_alert=False,
             reason="suppressed: low-quality transcript",
+        )
+    if extracted.severity is Severity.HIGH and extracted.confidence < MIN_ALERT_CONFIDENCE:
+        return AlertDecision(
+            should_alert=False,
+            reason="suppressed: low classifier confidence",
         )
     if extracted.severity is Severity.HIGH:
         return AlertDecision(

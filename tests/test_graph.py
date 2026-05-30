@@ -19,7 +19,7 @@ def temp_db(tmp_path, monkeypatch):
     graph_module._compiled_graph = None
 
 
-def test_graph_runs_end_to_end(temp_db, monkeypatch):
+def test_graph_runs_end_to_end(temp_db, monkeypatch, transcripts_by_category):
     from agents import graph as graph_module
     from db.queries import fetch_unclassified, insert_transcription, recent_transcriptions
     from models.schemas import (
@@ -30,11 +30,12 @@ def test_graph_runs_end_to_end(temp_db, monkeypatch):
         TransmissionType,
     )
 
+    sample = transcripts_by_category("ems")[0]
     row_id = insert_transcription(TranscriptionEvent(
         timestamp=datetime.now(timezone.utc),
-        frequency_mhz=154.370,
-        raw_text="Med 843, respond code 2, TC unknown, 205 West Irvington Road",
-        duration_sec=4.0,
+        frequency_mhz=sample["frequency_mhz"],
+        raw_text=sample["raw_text"],
+        duration_sec=sample["duration_sec"],
     ))
 
     def fake_classify(event, **kwargs):
@@ -120,3 +121,35 @@ def test_graph_alert_node_pushes_ntfy_on_high_severity(temp_db, monkeypatch):
     assert final["alert"].should_alert is True
     assert len(pushed) == 1
     assert "alert" in pushed[0][0].lower() or "severity" in pushed[0][0].lower()
+
+
+def test_graph_hallucination_never_fires_high_alert(temp_db, monkeypatch, transcripts_by_category):
+    """End-to-end guard: the id=27 ghost transcript runs through the *real*
+    classify pre-gate (no LLM call), and even if extract is forced to HIGH the
+    alert stage suppresses it."""
+    from agents import graph as graph_module
+    from db.queries import insert_transcription
+    from models.schemas import ExtractedEvent, Severity, TranscriptionEvent, TransmissionType
+
+    ghost = next(r for r in transcripts_by_category("hallucination") if r["id"] == 27)
+    row_id = insert_transcription(TranscriptionEvent(
+        timestamp=datetime.now(timezone.utc),
+        frequency_mhz=ghost["frequency_mhz"],
+        raw_text=ghost["raw_text"],
+        duration_sec=ghost["duration_sec"],
+    ))
+
+    # Worst case: extract still tags it HIGH. classify is NOT mocked — the real
+    # pre-gate must short-circuit the ghost before any network call.
+    def fake_extract(classified, **kwargs):
+        assert classified.transmission_type is TransmissionType.UNKNOWN
+        assert classified.confidence == 0.0
+        return ExtractedEvent(**classified.model_dump(), severity=Severity.HIGH)
+
+    monkeypatch.setattr("agents.graph.extract_event", fake_extract)
+    pushed = []
+    monkeypatch.setattr("agents.graph.push_ntfy", lambda **kwargs: pushed.append(kwargs))
+
+    final = graph_module.run_for_row(row_id)
+    assert final["alert"].should_alert is False
+    assert pushed == []

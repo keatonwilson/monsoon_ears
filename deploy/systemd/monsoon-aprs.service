@@ -1,0 +1,20 @@
+[Unit]
+Description=Monsoon Ears — APRS-IS weather packet feed
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=keaton
+WorkingDirectory=/home/keaton/Documents/projects/monsoon_ears
+EnvironmentFile=/home/keaton/Documents/projects/monsoon_ears/.env
+# Requires APRS_IS_ENABLED=true in .env; otherwise the process exits 0 cleanly
+# and systemd leaves it inactive (Restart=on-failure won't loop on a clean exit).
+ExecStart=/home/keaton/.local/bin/uv run --no-sync python -m ingestion.aprs_is_client
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

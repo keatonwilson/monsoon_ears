@@ -134,6 +134,23 @@ APRS_IS_ENABLED=true uv run python -m ingestion.aprs_is_client    # APRS-IS feed
 
 Then any device on the LAN points its browser at `http://monsoon-ears.local:8501`. The agent worker also runs the Sonnet 4.6 monsoon-correlation digest every `DIGEST_INTERVAL_MIN` minutes via APScheduler — the dashboard's monsoon tab surfaces its most recent verdict.
 
+### Auto-start with systemd
+
+The three always-on backend processes (ingestion runner, agent worker, APRS-IS feed) ship as systemd units in [`deploy/systemd/`](./deploy/systemd) so the Pi recovers them after a crash or reboot. Install them once, from the repo root on the Pi:
+
+```bash
+sudo deploy/install_services.sh
+```
+
+The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-runner`, `monsoon-worker`, and `monsoon-aprs`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
+
+```bash
+systemctl status monsoon-runner monsoon-worker monsoon-aprs
+journalctl -u monsoon-runner -f
+```
+
+`monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interface processes are launched via `scripts/run_api.sh` / `scripts/run_dashboard.sh` (or your own units).
+
 ### Port table
 
 | Port | Process | Role |
