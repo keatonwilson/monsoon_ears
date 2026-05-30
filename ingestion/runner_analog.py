@@ -1,8 +1,10 @@
-"""Phase 02 analog ingestion loop: capture → squelch → VAD → Whisper → SQLite.
+"""Phase 03 analog ingestion loop: scanner → VAD → Whisper → SQLite.
 
-Each chunk that survives the RMS squelch is segmented by webrtcvad. Whisper
-runs once per speech segment instead of once per fixed window — fewer mid-word
-cuts, less wasted compute on dead air, fewer hallucinations.
+The scanner walks the analog FM target list, holds on whatever channel has
+signal, and periodically visits NOAA for forecast context. Each captured
+chunk goes through the same preprocess → VAD → Whisper → hallucination filter
+chain as Phase 02 — the only difference is that `frequency_mhz` on the stored
+row varies with which channel was active.
 
 Run with:
     uv run python -m ingestion.runner_analog
@@ -18,15 +20,17 @@ from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 
+from config.frequencies import ANALOG_FM, Frequency
 from db.queries import insert_transcription
 from ingestion.capture_analog import AnalogCapture
 from ingestion.preprocess import preprocess_radio_audio
+from ingestion.scanner import FrequencyScanner
 from ingestion.transcribe import transcribe
 from ingestion.vad import find_speech_segments
 from models.schemas import TranscriptionEvent
 
-# Rural Metro Fire Dispatch — confirmed analog FM during Phase 01.
-DEFAULT_FREQ_MHZ = 154.370
+# Priority floor parsing — higher floors keep fewer (more important) freqs.
+_PRIORITY_ORDER = {"primary": 0, "high": 1, "medium": 2, "low": 3}
 
 
 def _setup_logging() -> None:
@@ -37,12 +41,21 @@ def _setup_logging() -> None:
     )
 
 
+def _scan_list(min_priority: str) -> list[Frequency]:
+    floor = _PRIORITY_ORDER.get(min_priority.lower(), _PRIORITY_ORDER["high"])
+    return [
+        f for f in ANALOG_FM
+        if _PRIORITY_ORDER.get(f.priority, 99) <= floor
+        # NOAA is excluded from the rolling scan — handled as a periodic visit.
+        and abs(f.mhz - 162.3975) > 0.01
+    ]
+
+
 def main() -> int:
     load_dotenv()
     _setup_logging()
     log = logging.getLogger("runner_analog")
 
-    freq_mhz = float(os.getenv("CAPTURE_FREQ_MHZ", DEFAULT_FREQ_MHZ))
     sample_rate = int(os.getenv("SDR_SAMPLE_RATE", 1_024_000))
     gain_raw = os.getenv("SDR_GAIN", "40")
     gain: float | str = "auto" if gain_raw.lower() == "auto" else float(gain_raw)
@@ -51,11 +64,42 @@ def main() -> int:
     vad_aggressiveness = int(os.getenv("VAD_AGGRESSIVENESS", 2))
     vad_min_segment_ms = int(os.getenv("VAD_MIN_SEGMENT_MS", 800))
 
+    scan_min_priority = os.getenv("SCAN_MIN_PRIORITY", "high")
+    probe_sec = float(os.getenv("SCAN_PROBE_SEC", 1.0))
+    hangover_chunks = int(os.getenv("SCAN_HANGOVER_CHUNKS", 1))
+    max_hold_sec = float(os.getenv("SCAN_MAX_HOLD_SEC", 120.0))
+    noaa_freq_mhz = float(os.getenv("NOAA_FREQ_MHZ", 162.3975))
+    noaa_interval_min = float(os.getenv("NOAA_VISIT_INTERVAL_MIN", 15.0))
+    noaa_duration_sec = float(os.getenv("NOAA_VISIT_DURATION_SEC", 30.0))
+
+    scan_freqs = _scan_list(scan_min_priority)
+    if not scan_freqs:
+        log.error("no frequencies match SCAN_MIN_PRIORITY=%s", scan_min_priority)
+        return 1
+
+    log.info(
+        "scan list (%d freqs, min_priority=%s): %s",
+        len(scan_freqs), scan_min_priority,
+        ", ".join(f"{f.name}@{f.mhz}" for f in scan_freqs),
+    )
+
+    # The scanner needs a tuner; we kick off on the first scan freq, then it
+    # retunes as state transitions happen.
     capture = AnalogCapture(
-        freq_mhz=freq_mhz,
+        freq_mhz=scan_freqs[0].mhz,
         sample_rate=sample_rate,
         gain=gain,
         noise_floor_rms=noise_floor_rms,
+    )
+    scanner = FrequencyScanner(
+        backend=capture,
+        scan_frequencies=scan_freqs,
+        noaa_freq_mhz=noaa_freq_mhz,
+        probe_sec=probe_sec,
+        hangover_chunks=hangover_chunks,
+        max_hold_sec=max_hold_sec,
+        noaa_visit_interval_min=noaa_interval_min,
+        noaa_visit_duration_sec=noaa_duration_sec,
     )
 
     shutting_down = False
@@ -72,22 +116,18 @@ def main() -> int:
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
 
-    log.info(
-        "starting capture loop @ %.4f MHz, chunk=%.1fs, vad_aggr=%d, vad_min=%dms",
-        freq_mhz, chunk_sec, vad_aggressiveness, vad_min_segment_ms,
-    )
+    log.info("starting scanner loop, chunk=%.1fs, vad_aggr=%d, vad_min=%dms",
+             chunk_sec, vad_aggressiveness, vad_min_segment_ms)
     try:
-        for audio in capture.iter_chunks(chunk_sec):
-            if audio is None:
-                continue
-            cleaned = preprocess_radio_audio(audio, sr=capture.audio_rate)
+        for active in scanner.iter_active_chunks(chunk_sec):
+            cleaned = preprocess_radio_audio(active.audio, sr=capture.audio_rate)
             segments = find_speech_segments(
                 cleaned,
                 aggressiveness=vad_aggressiveness,
                 min_segment_ms=vad_min_segment_ms,
             )
             if not segments:
-                log.debug("chunk had no speech segments after VAD")
+                log.debug("no speech in %.4f MHz chunk", active.frequency.mhz)
                 continue
 
             for seg in segments:
@@ -98,15 +138,16 @@ def main() -> int:
                     continue
                 event = TranscriptionEvent(
                     timestamp=datetime.now(timezone.utc),
-                    frequency_mhz=freq_mhz,
+                    frequency_mhz=active.frequency.mhz,
                     raw_text=text,
                     duration_sec=duration_sec,
                     source="analog",
                 )
                 row_id = insert_transcription(event)
                 log.info(
-                    "[%s] id=%d (%.1fs) %s",
-                    freq_mhz, row_id, duration_sec, text[:120],
+                    "[%.4f / %s] id=%d (%.1fs) %s",
+                    active.frequency.mhz, active.frequency.name,
+                    row_id, duration_sec, text[:120],
                 )
     finally:
         capture.close()
