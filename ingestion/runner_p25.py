@@ -54,6 +54,19 @@ def main() -> int:
     if op25_cmd:
         log.info("launching op25: %s", op25_cmd)
         op25_proc = subprocess.Popen(shlex.split(op25_cmd))
+        # op25's `-U` audio_thread binds UDP :23456 itself (rx.py __init__). If we
+        # bind our UDP backend first, op25 dies with "Address already in use", so
+        # give op25 a head start to come up and grab the port before we attach.
+        warmup = float(os.getenv("P25_OP25_WARMUP_SEC", 12.0))
+        log.info("waiting %.0fs for op25 to initialize before attaching backend", warmup)
+        import time as _time
+        waited = 0.0
+        while waited < warmup:
+            if op25_proc.poll() is not None:
+                log.error("op25 exited during warmup (rc=%s); aborting leg", op25_proc.poll())
+                return 1
+            _time.sleep(1.0)
+            waited += 1.0
     else:
         log.info("OP25_CMD empty; assuming op25 runs separately")
 
