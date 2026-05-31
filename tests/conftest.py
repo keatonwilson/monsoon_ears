@@ -21,6 +21,21 @@ def _load(name: str):
     return json.loads((_FIXTURE_DIR / name).read_text())
 
 
+@pytest.fixture
+def temp_db(tmp_path, monkeypatch):
+    """Point the DB at a throwaway SQLite file and reset the cached engine.
+
+    Tests that seed rows (gauges, transcripts, APRS) and read them back via
+    db.queries use this so they never touch the real ./data/events.db.
+    """
+    db_file = tmp_path / "events.db"
+    monkeypatch.setenv("DB_PATH", str(db_file))
+    import db.database as database_module
+    database_module._engine = None
+    yield db_file
+    database_module._engine = None
+
+
 @pytest.fixture(scope="session")
 def transcript_samples() -> list[dict]:
     """20 frozen transcript records (raw dicts, tagged by `category`)."""

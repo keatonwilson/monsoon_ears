@@ -11,8 +11,28 @@ import streamlit as st
 from dashboard.api_client import APIClient
 
 
+def _render_sdr_banner(client: APIClient) -> None:
+    """Compact 'what's the dongle doing right now' line, if the supervisor is up."""
+    try:
+        status = client.sdr_status()
+    except Exception:  # noqa: BLE001 — never let the banner break the tab
+        return
+    if not status.get("available"):
+        return
+    leg = status.get("current_leg")
+    label = {"p25": "P25 / PCWIN", "analog": "Analog scan"}.get(leg, leg or "idle")
+    src = status.get("plan_source", "")
+    badge = "🤖 agent" if src == "agent" else "📻 rules"
+    line = f"**Current band:** {label}  ·  {badge}"
+    rationale = status.get("rationale")
+    if rationale:
+        line += f"  ·  _{rationale}_"
+    st.caption(line)
+
+
 def render(client: APIClient) -> None:
     st.subheader("Activity in the last 24 hours")
+    _render_sdr_banner(client)
     try:
         data = client.events(since_minutes=24 * 60, limit=500)
     except Exception as exc:  # noqa: BLE001

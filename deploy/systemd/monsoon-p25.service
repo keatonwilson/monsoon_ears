@@ -1,7 +1,9 @@
 [Unit]
-# P25/PCWIN ingestion. NOT enabled by install_services.sh — op25 must be built
-# on the Pi and confirmed locking PCWIN first (see deploy/op25_setup.md). Once
-# validated, enable by hand:  sudo systemctl enable --now monsoon-p25
+# P25/PCWIN ingestion. NOT enabled by install_services.sh, and NOT meant to run
+# alongside monsoon-sdr — the supervisor owns the dongle and launches the P25 leg
+# itself (gated by SDR_ENABLE_P25 in .env). Kept for manual/debug runs of the
+# P25 path in isolation. op25 must be built + locking PCWIN first (see
+# deploy/op25_setup.md).
 Description=Monsoon Ears — P25/PCWIN ingestion (op25 -> Whisper -> SQLite)
 After=network-online.target
 Wants=network-online.target

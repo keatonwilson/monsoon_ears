@@ -44,6 +44,9 @@ class APIClient:
     def gauges(self, **params) -> dict[str, Any]:
         return self._get("/gauges", params=params)
 
+    def sdr_status(self) -> dict[str, Any]:
+        return self._get("/sdr/status")
+
     def summary(self) -> dict[str, Any]:
         return self._get("/summary")
 
