@@ -15,7 +15,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from agents.hallucination import looks_like_hallucination
-from config.frequencies import ANALOG_FM
+from config.frequencies import ANALOG_FM, TALKGROUP_HINTS
 from models.schemas import ClassifiedEvent, TranscriptionEvent, TransmissionType
 
 logger = logging.getLogger(__name__)
@@ -38,14 +38,21 @@ class ClassifyResponse(BaseModel):
 
 
 def _build_prompt(event: TranscriptionEvent) -> str:
-    hint = _FREQ_HINTS.get(event.frequency_mhz, "unknown channel")
+    # P25 events identify their channel by talkgroup, not frequency; the
+    # talkgroup hint is just as strong a prior as the analog frequency hint.
+    if event.source == "p25" and event.talkgroup_id is not None:
+        tg_hint = TALKGROUP_HINTS.get(event.talkgroup_id, "unknown talkgroup")
+        channel_line = f"PCWIN P25 talkgroup {event.talkgroup_id} — {tg_hint}"
+    else:
+        freq_hint = _FREQ_HINTS.get(event.frequency_mhz, "unknown channel")
+        channel_line = f"Frequency: {event.frequency_mhz} MHz — {freq_hint}"
     return (
         f"You are classifying a snippet from a public-safety radio scanner in Tucson, AZ.\n\n"
-        f"Frequency: {event.frequency_mhz} MHz — {hint}\n"
+        f"{channel_line}\n"
         f"Duration: {event.duration_sec:.1f} seconds\n"
         f"Transcribed text:\n\"{event.raw_text}\"\n\n"
         "Pick the single best `transmission_type` from: fire, ems, police, ham, "
-        "weather, aprs, flood_control, unknown. The frequency hint is a strong prior — "
+        "weather, aprs, flood_control, unknown. The channel hint is a strong prior — "
         "trust it unless the text clearly says otherwise. Estimate confidence 0.0–1.0."
     )
 
