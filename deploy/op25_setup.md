@@ -77,44 +77,53 @@ Frequencies table with **Active Talkgroup IDs** + Voice Counts as calls happen.
 `-U` for UDP audio, see §4.) If it doesn't lock, bump gain (`lna:40`→`49`) or
 check the antenna.
 
-## 4. Bridge op25 audio into the pipeline  ⏳ *remaining work*
+## 4. Bridge op25 audio into the pipeline  ✅ *built + verified live*
 
 **Live finding:** with `-U`, op25 does **not** write per-call WAV files — it
 streams decoded voice as **raw PCM over UDP to `127.0.0.1:23456`** (`Listening on
-127.0.0.1:23456` in the log), and exposes the *current* call's talkgroup/frequency
-via the `:8080` HTTP console (the same JSON the web UI polls). So the Phase 5
-`WavDirBackend` (which watched for `<tgid>-<epoch>.wav` files) does **not** match
-this op25 build as-is. Two ways to close the gap:
+127.0.0.1:23456` in the log), and exposes the *current* call's talkgroup via the
+`:8080` HTTP console. The Phase 5 `WavDirBackend` never matched this, so the
+**`UdpP25Backend`** (`ingestion/capture_p25.py`) is the real bridge and is now the
+default (`P25_BACKEND=udp` in `runner_p25`).
 
-1. **UDP backend (recommended).** Add a `P25Backend` that reads PCM frames from
-   UDP `:23456` and pairs them with the active talkgroup polled from the
-   `:8080` console, segmenting per call → `P25Call`. Replaces `WavDirBackend`
-   for this op25 setup; the `run_p25_ingestion` loop and everything downstream
-   stay the same.
-2. **WAV-recorder shim.** Run op25's `audio.py`/recorder (or `multi_rx.py` with a
-   file sink) to write per-call WAVs named `<tgid>-<epoch_ms>.wav` into
-   `P25_WAV_DIR`, and keep the existing `WavDirBackend`.
+**Verified on the Pi (May 2026)** with `scripts/p25_preflight.py`:
+- **UDP audio** = 320-byte datagrams → 160 × `int16` LE mono @ **8 kHz** (20 ms
+  frames), plus occasional 2-byte keepalives (tolerated). Resampled 8k→16k.
+- **Console:** `change_freq.tgid` is `null` when idle and carries the active
+  talkgroup during a whitelisted voice call — `parse_active_tgid` reads it; a
+  background `Op25ConsolePoller` keeps the latest tgid for pairing.
+- **End-to-end:** a live PCSO East-1 (tg 18009) call produced a
+  `source="p25", talkgroup_id=18009` row through Whisper → SQLite.
 
-Option 1 is the cleaner fit and is the next task. Until it lands, `runner_p25`
-won't produce rows even though op25 is decoding.
+Call boundaries come from the inter-packet gap (`CallAccumulator`, `P25_GAP_SEC`,
+default 0.8s). Run it manually to validate before enabling the leg:
 
 ```bash
-# .env (already present)
-P25_WAV_DIR=/home/keaton/Documents/projects/monsoon_ears/data/op25_calls
-# OP25_CMD=  # leave empty; run rx.py from apps/ per §3 (PYTHONPATH + config copy)
+# Terminal 1: op25 (uses the §3 command)
+scripts/run_op25.sh
+# Terminal 2: observe what op25 emits
+uv run python scripts/p25_preflight.py --seconds 25
+# Terminal 3: actually ingest (UDP backend; op25 already running)
+P25_BACKEND=udp uv run python -m ingestion.runner_p25
 ```
 
-The end-state goal is unchanged: `source="p25"` rows with real talkgroup IDs
-appear (e.g. via `GET /events?source=p25`) and flow through classify → extract →
-alert to the dashboard (`P25 · <talkgroup label>`).
+## 5. Run it under the SDR supervisor
 
-## 5. Run it as a service
-
-A unit ships at [`deploy/systemd/monsoon-p25.service`](./systemd/monsoon-p25.service)
-but is **not** enabled by `install_services.sh` — turn it on only after the
-manual run above works:
+The single dongle is owned by **`monsoon-sdr`** (the supervisor), which time-shares
+the analog and P25 legs — do **not** run `monsoon-p25` alongside it. The P25 leg
+launches op25 itself via `OP25_CMD`, so set in `.env`:
 
 ```bash
-sudo systemctl enable --now monsoon-p25
-journalctl -u monsoon-p25 -f
+SDR_ENABLE_P25=true
+OP25_CMD=/home/keaton/Documents/projects/monsoon_ears/scripts/run_op25.sh
+P25_BACKEND=udp
+SDR_DEFAULT_POSTURE=p25          # P25-primary: op25 holds the dongle most of the cycle
+SDR_LEG_COOLDOWN_SEC=8           # give op25/gnuradio time to release the SDR on a switch
+```
+
+then restart the supervisor:
+
+```bash
+sudo systemctl restart monsoon-sdr
+journalctl -u monsoon-sdr -f
 ```

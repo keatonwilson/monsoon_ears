@@ -76,6 +76,25 @@ def main() -> int:
         log.info("p25 backend=udp port=%s console=%s",
                  os.getenv("P25_UDP_PORT", "23456"), os.getenv("P25_CONSOLE_URL", "http://127.0.0.1:8080"))
 
+    def _stop_op25() -> None:
+        """Terminate op25 and WAIT for it to release the SDR before returning.
+
+        Critical for leg-switching: the SDR supervisor starts the analog leg
+        right after this leg dies, so op25 must have fully let go of the dongle
+        (or we get usb_claim_interface / device-busy errors)."""
+        if op25_proc is None or op25_proc.poll() is not None:
+            return
+        op25_proc.terminate()
+        try:
+            op25_proc.wait(timeout=8)
+        except subprocess.TimeoutExpired:
+            log.warning("op25 did not exit on SIGTERM; killing")
+            op25_proc.kill()
+            try:
+                op25_proc.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                log.error("op25 failed to die after SIGKILL")
+
     shutting_down = False
 
     def _shutdown(*_):
@@ -85,8 +104,7 @@ def main() -> int:
         shutting_down = True
         log.info("shutting down")
         backend.close()
-        if op25_proc is not None and op25_proc.poll() is None:
-            op25_proc.terminate()
+        _stop_op25()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, _shutdown)
@@ -97,8 +115,7 @@ def main() -> int:
         run_p25_ingestion(backend)
     finally:
         backend.close()
-        if op25_proc is not None and op25_proc.poll() is None:
-            op25_proc.terminate()
+        _stop_op25()
     return 0
 
 
