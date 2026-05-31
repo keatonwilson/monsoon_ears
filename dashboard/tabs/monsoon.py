@@ -72,6 +72,26 @@ def render(client: APIClient) -> None:
 
     st.divider()
 
+    # --- Stream / rain gauges (USGS + Pima ALERT) ----------------------------
+    st.markdown("### Stream & rain gauges (last 60 min)")
+    try:
+        gauges = client.gauges(minutes=60, limit=200)["results"]
+    except Exception as exc:  # noqa: BLE001
+        st.error(f"API error: {exc}")
+        return
+    if not gauges:
+        st.caption("No gauge readings yet. Start the gauge feed on the Pi (USGS is on by default).")
+    else:
+        gdf = pd.DataFrame(gauges)
+        cols_order = [c for c in ["site_name", "wash", "source", "discharge_cfs",
+                                  "gage_height_ft", "precip_in", "timestamp"] if c in gdf.columns]
+        gdf = gdf[cols_order]
+        if "discharge_cfs" in gdf.columns:
+            gdf = gdf.sort_values("discharge_cfs", ascending=False, na_position="last")
+        st.dataframe(gdf, use_container_width=True, hide_index=True)
+
+    st.divider()
+
     # --- Recent fire / EMS / flood-control voice -----------------------------
     st.markdown("### Fire / EMS / flood-control radio (last 60 min)")
     try:

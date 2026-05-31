@@ -52,6 +52,23 @@ class APRSEventRow(SQLModel, table=True):
     source: str = "aprs"
 
 
+class GaugeReadingRow(SQLModel, table=True):
+    """Stream/rain gauge reading from USGS or Pima County ALERT. Feeds the
+    monsoon correlation digest alongside voice + APRS weather."""
+    __tablename__ = "gauge_readings"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    timestamp: datetime = Field(index=True)
+    source: str = Field(default="usgs", index=True)  # "usgs" | "pima_alert"
+    site_id: str = Field(index=True)
+    site_name: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    discharge_cfs: Optional[float] = None
+    gage_height_ft: Optional[float] = None
+    precip_in: Optional[float] = None
+
+
 class EventThreadRow(SQLModel, table=True):
     """A cluster of related transcription events on the same frequency.
 

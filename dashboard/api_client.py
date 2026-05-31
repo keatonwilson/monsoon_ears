@@ -41,6 +41,9 @@ class APIClient:
     def aprs(self, **params) -> dict[str, Any]:
         return self._get("/aprs", params=params)
 
+    def gauges(self, **params) -> dict[str, Any]:
+        return self._get("/gauges", params=params)
+
     def summary(self) -> dict[str, Any]:
         return self._get("/summary")
 
