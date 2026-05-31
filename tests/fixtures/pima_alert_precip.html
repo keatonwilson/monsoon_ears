@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html>
+<head>
+Hello Console!!<META HTTP-EQUIV="REFRESH" CONTENT="300"><meta name="author" content="Brady Colton / Copyright � 2013">
+<meta name="viewport" content="width=1024">
+<link rel="stylesheet" type="text/css" href="js/jquery-ui/jquery-ui.min.css">
+<link rel="stylesheet" type="text/css" href="css/spinner.css">
+<link rel="stylesheet" type="text/css" href="css/main.css">
+<link rel="stylesheet" type="text/css" href="css/pgi_style.css">
+<link rel="stylesheet" type="text/css" href="css/info_style.css">
+
+<title>ALERT Precipitation Gauge Information</title>
+<meta name="keywords" content="ALERT Precipitation Gauge Information">
+<meta name="description" content="Pima County Flood Control District ALERT Precipitation Gauge Information">
+
+
+
+
+
+
+</head>
+<div id="spinnerbackground">
+	<div class="spinner">
+    <div class="bar1"></div>
+    <div class="bar2"></div>
+    <div class="bar3"></div>
+    <div class="bar4"></div>
+    <div class="bar5"></div>
+    <div class="bar6"></div>
+    <div class="bar7"></div>
+    <div class="bar8"></div>
+    <div class="bar9"></div>
+    <div class="bar10"></div>
+    <div class="bar11"></div>
+    <div class="bar12"></div>
+	</div>
+</div>
+<body>
+<div id="top-shadow"></div>
+
+
+<div id=HeaderImage align="center"><a class=HeaderImageLink href="https://webcms.pima.gov/government/flood_control/services/precipitation_and_streamflow_data/" target="_top"><img src="Images/PimaBanner_files/pima-logo2.png" alt="Pima County" border="0"></a></div>
+
+<br><br><br>
+
+<div id=CenterContent>
+
+<div id=HeaderText><h2>ALERT Precipitation Gauge Information</h2></div>
+
+<!-- <div id=Preliminary_Data_Notice></div> -->
+
+<!-- <br> -->
+
+<!-- <div id=Time_Notice></div> -->
+
+<br>
+
+<div><table class = watershedLinksTable><th class= DataTableTitle colspan="3">Jump to Precipitation Area:</th><tr><td><a href="#Catalina Area">Catalina Area</a></td><td><a href="#Santa Catalina Mountains">Santa Catalina Mountains</a></td><td><a href="#Santa Catalina Foothills">Santa Catalina Foothills</a></td></tr><td><a href="#Redington Pass Area">Redington Pass Area</a></td><td><a href="#Rincon Mountains">Rincon Mountains</a></td><td><a href="#Greater Tucson">Greater Tucson</a></td></tr><td><a href="#Southern Tucson Area">Southern Tucson Area</a></td><td><a href="#Altar/Avra Valley Area">Altar/Avra Valley Area</a></td><td><a href="#Marana/Oro Valley Area">Marana/Oro Valley Area</a></td></tr><td><a href="#Vail Area">Vail Area</a></td><td><a href="#Green Valley Area">Green Valley Area</a></td><td><a href="#Ajo/Western Pima County">Ajo/Western Pima County</a></td></table></div><br><div id=TimeAndReport><div id=CurrentReportText>Updated:  05/30/2026  06:20:50 PM </div><br><div id=LookupDateTime class=LookupDateTime>Lookup Date/Time: <select id="dateMonth" class="LookupDateTimeSelect"><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option selected value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>/<select id="dateDay" class="LookupDateTimeSelect"><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option><option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option selected value="30">30</option><option value="31">31</option></select>/<select id="dateYear" class="LookupDateTimeSelect"><option value="1970">1970</option><option value="1971">1971</option><option value="1972">1972</option><option value="1973">1973</option><option value="1974">1974</option><option value="1975">1975</option><option value="1976">1976</option><option value="1977">1977</option><option value="1978">1978</option><option value="1979">1979</option><option value="1980">1980</option><option value="1981">1981</option><option value="1982">1982</option><option value="1983">1983</option><option value="1984">1984</option><option value="1985">1985</option><option value="1986">1986</option><option value="1987">1987</option><option value="1988">1988</option><option value="1989">1989</option><option value="1990">1990</option><option value="1991">1991</option><option value="1992">1992</option><option value="1993">1993</option><option value="1994">1994</option><option value="1995">1995</option><option value="1996">1996</option><option value="1997">1997</option><option value="1998">1998</option><option value="1999">1999</option><option value="2000">2000</option><option value="2001">2001</option><option value="2002">2002</option><option value="2003">2003</option><option value="2004">2004</option><option value="2005">2005</option><option value="2006">2006</option><option value="2007">2007</option><option value="2008">2008</option><option value="2009">2009</option><option value="2010">2010</option><option value="2011">2011</option><option value="2012">2012</option><option value="2013">2013</option><option value="2014">2014</option><option value="2015">2015</option><option value="2016">2016</option><option value="2017">2017</option><option value="2018">2018</option><option value="2019">2019</option><option value="2020">2020</option><option value="2021">2021</option><option value="2022">2022</option><option value="2023">2023</option><option value="2024">2024</option><option value="2025">2025</option><option selected value="2026">2026</option></select><select id="timeHour" class="LookupDateTimeSelect"><option value="01">01</option><option value="02">02</option><option value="03">03</option><option value="04">04</option><option value="05">05</option><option selected value="06">06</option><option value="07">07</option><option value="08">08</option><option value="09">09</option><option value="10">10</option><option value="11">11</option><option value="12">12</option></select>:<select id="timeMinute" class="LookupDateTimeSelect"><option value="00">00</option><option selected value="15">15</option><option value="30">30</option><option value="45">45</option></select>:00 <select id="timeAMPM" class="LookupDateTimeSelect"><option value="AM">AM</option><option selected value="PM">PM</option></select>  <button id="lookupDateButton" onclick="goToDate()">Lookup Date</button></div></div><br><div class=DataTableContainer><table class=DataTable><tr class=WatershedHeader><td class=DataTableTitle id="Ajo/Western Pima County" colspan=9><b>Ajo/Western Pima County</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>2410</b></td><td class=SensorName>Childs Mountain                                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2420</b></td><td class=SensorName>Ajo - Ten Mile Basin                                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2430</b></td><td class=SensorName>Gibson Arroyo near Rosedale Ave                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Altar/Avra Valley Area" colspan=9><b>Altar/Avra Valley Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>4100</b></td><td class=SensorName>AZGFD1                                                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>5020</b></td><td class=SensorName>AZGFD 2                                                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>5030</b></td><td class=SensorName>AZGFD 3                                                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6370</b></td><td class=SensorName>Arivaca - Altar Basin                                                                               </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6380</b></td><td class=SensorName>Altar Wash at Highway 286                                                                           </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6410</b></td><td class=SensorName>Diamond Bell Ranch - Brawley Basin                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6420</b></td><td class=SensorName>Brawley Wash at Three Points                                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6430</b></td><td class=SensorName>Valhalla Park - Black Wash Basin                                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6440</b></td><td class=SensorName>Brawley Wash at Milewide Road                                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6450</b></td><td class=SensorName>Hilltop Road - Brawley Basin                                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6460</b></td><td class=SensorName>Picture Rocks Community Center - Brawley Basin                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6470</b></td><td class=SensorName>Tucson Water Treatment Plant - Brawley Basin                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6480</b></td><td class=SensorName>Trico Rd north of Manville                                                                          </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Catalina Area" colspan=9><b>Catalina Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>1010</b></td><td class=SensorName>Saddlebrooke - Canada Del Oro Basin                                                                 </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1020</b></td><td class=SensorName>Oracle Ranger Station - Canada Del Oro Basin                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1040</b></td><td class=SensorName>Dodge Tank -Canada Del Oro Basin                                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1050</b></td><td class=SensorName>Cherry Spring - Canada Del Oro Basin                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1060</b></td><td class=SensorName>Pig Spring - Canada Del Oro Basin                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1070</b></td><td class=SensorName>Cargodera Canyon - Canada Del Oro Basin                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1080</b></td><td class=SensorName>Canada Del Oro Wash at Rancho Solano                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1100</b></td><td class=SensorName>Canada Del Oro Wash at Golder Ranch Road                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Greater Tucson" colspan=9><b>Greater Tucson</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>2110</b></td><td class=SensorName>Tanque Verde Creek at Tanque Verde Road                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2120</b></td><td class=SensorName>Tanque Verde Creek at Sabino Canyon Road                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2300</b></td><td class=SensorName>Rosewood St near Harrison Rd - Tanque Verde Basin                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2310</b></td><td class=SensorName>Rancho El Mirador - Tanque Verde Basin                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2320</b></td><td class=SensorName>Beverly Ave near Speedway Blvd - Alamo Basin                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2330</b></td><td class=SensorName>Golf Links Road near Kolb Road - Alamo Basin                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2350</b></td><td class=SensorName>Rillito Creek above Dodge Blvd                                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2360</b></td><td class=SensorName>Rillito Creek at La Cholla Blvd                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2370</b></td><td class=SensorName>Alamo Wash below Glenn Street                                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2380</b></td><td class=SensorName>Ruthraff Rd near La Cholla Blvd - Rillito Basin                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4160</b></td><td class=SensorName>Irvington Rd near Pantano Road - Pantano Basin                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4180</b></td><td class=SensorName>Pantano Wash at Houghton Road - Pantano Basin                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6030</b></td><td class=SensorName>Santa Cruz River above Grant Road                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6040</b></td><td class=SensorName>Santa Cruz River at Valencia Road                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6100</b></td><td class=SensorName>Mission Road near Silverlake Road - Santa Cruz Basin                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6120</b></td><td class=SensorName>W. 20th St. near I-10 - Santa Cruz Basin                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6180</b></td><td class=SensorName>Arroyo Chico Wash at Cherry Avenue                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6190</b></td><td class=SensorName>Arroyo Chico Wash at Randolph Park                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6230</b></td><td class=SensorName>Tucson Diversion Channel at Ajo Detention Basin                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6240</b></td><td class=SensorName>Kino Medical - Tucson Diversion Basin (DEQ)                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6250</b></td><td class=SensorName>Golf Links Sports Complex - Julian Wash Basin                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6260</b></td><td class=SensorName>Tucson Electric Power Plant - Julian Wash Basin                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6270</b></td><td class=SensorName>Pima Air Museum - Julian Wash Basin                                                                 </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Green Valley Area" colspan=9><b>Green Valley Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>6050</b></td><td class=SensorName>Santa Cruz River at Continental Road                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6051</b></td><td class=SensorName>Santa Cruz River below Continental Road                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6060</b></td><td class=SensorName>Santa Cruz River at Elephant Head Road                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6080</b></td><td class=SensorName>Santa Cruz River near Tubac                                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6310</b></td><td class=SensorName>Keystone Peak                                                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6320</b></td><td class=SensorName>Tinaja Ranch - Santa Cruz Basin                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6330</b></td><td class=SensorName>Anamax Mine near Green Valley - Santa Cruz Basin                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6340</b></td><td class=SensorName>Canoa Ranch                                                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6350</b></td><td class=SensorName>Elephant Head Butte - Santa Cruz Basin                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6390</b></td><td class=SensorName>Florida Canyon Santa Cruz Basin                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Marana/Oro Valley Area" colspan=9><b>Marana/Oro Valley Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>1000</b></td><td class=SensorName>Arthur Pack Park - Santa Cruz Basin                                                                 </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1200</b></td><td class=SensorName>Canada Del Oro Wash at Ina Road                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1210</b></td><td class=SensorName>Massingale Detention                                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1220</b></td><td class=SensorName>Oro Valley Water Plant 13                                                                           </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1230</b></td><td class=SensorName>Oro Valley Public Works - Canada Del Oro Basin                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1240</b></td><td class=SensorName>Moore Rd at La Cholla Blvd - Canada Del Oro Basin                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1250</b></td><td class=SensorName>Pima Wash at Ina Road                                                                               </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1260</b></td><td class=SensorName>Rancho Vistoso - Canada Del Oro Basin                                                               </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1270</b></td><td class=SensorName>Canada Del Oro Wash at Big Wash                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1290</b></td><td class=SensorName>Tangerine Sky Park                                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2140</b></td><td class=SensorName>Sutherland Wash at Catalina State Park                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6010</b></td><td class=SensorName>Santa Cruz River below Canada Del Oro Wash                                                          </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6020</b></td><td class=SensorName>Santa Cruz River at Ina Road                                                                        </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6110</b></td><td class=SensorName>Avra Valley Air Park - Santa Cruz Basin                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6130</b></td><td class=SensorName>Continental Reserve- Marana                                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Redington Pass Area" colspan=9><b>Redington Pass Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>2020</b></td><td class=SensorName>Park Tank - Tanque Verde Basin                                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2030</b></td><td class=SensorName>Italian Trap - Tanque Verde Basin                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2040</b></td><td class=SensorName>White Tank - Tanque Verde Basin                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2050</b></td><td class=SensorName>Bellota Ranch Road - Tanque Verde Basin                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2070</b></td><td class=SensorName>Tanque Verde Creek at Chiva Tank                                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2080</b></td><td class=SensorName>Alamo Tank - Tanque Verde Basin                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Rincon Mountains" colspan=9><b>Rincon Mountains</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>4110</b></td><td class=SensorName>Rincon Creek at X-9 Ranch                                                                           </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Santa Catalina Foothills" colspan=9><b>Santa Catalina Foothills</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>2090</b></td><td class=SensorName>Tanque Verde Creek at Tanque Verde Guest Ranch                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2100</b></td><td class=SensorName>Swan Road near Camino del Pantera - Rillito Basin                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2160</b></td><td class=SensorName>Sabino Creek at USFS Dam                                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2170</b></td><td class=SensorName>Ventana Canyon Wash at Sunrise Drive                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2180</b></td><td class=SensorName>Bear Canyon Wash near Bear Canyon Rd                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2190</b></td><td class=SensorName>Al-Marah - Sabino Basin                                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2200</b></td><td class=SensorName>Agua Caliente Wash at Tanque Verde Road                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2210</b></td><td class=SensorName>Houghton Road near Catalina Hwy - Sabino Basin                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2220</b></td><td class=SensorName>Agua Caliente Park - Agua Caliente Basin                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2230</b></td><td class=SensorName>El Camino Rinconado - Tanque Verde Basin                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2240</b></td><td class=SensorName>Molino Canyon - Agua Caliente Basin                                                                 </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2250</b></td><td class=SensorName>Agua Caliente Wash near La Milagrosa Canyon                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2390</b></td><td class=SensorName>Finger Rock Wash at Skyline Drive                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Santa Catalina Mountains" colspan=9><b>Santa Catalina Mountains</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>1030</b></td><td class=SensorName>Oracle Ridge - Canada Del Oro Basin                                                                 </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1090</b></td><td class=SensorName>Mt Lemmon                                                                                           </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1110</b></td><td class=SensorName>Canada Del Oro Wash at Coronado Camp                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1130</b></td><td class=SensorName>Samaniego Peak - Canada Del Oro Basin                                                               </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1140</b></td><td class=SensorName>Dan Saddle - Canada Del Oro Basin                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>1280</b></td><td class=SensorName>Ventana Canyon                                                                                      </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2150</b></td><td class=SensorName>White Tail Campground - Sabino Basin                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2260</b></td><td class=SensorName>Finger Rock Ridge near Mt. Kimball                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2270</b></td><td class=SensorName>Pima Canyon near Table Mountain                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2280</b></td><td class=SensorName>Green Mountain - Sabino Basin                                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2290</b></td><td class=SensorName>Sabino Creek near Marshall Gulch                                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>2130</b></td><td class=SensorName>Catalina Hwy Near Thimble Peak Overlook                                                             </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Southern Tucson Area" colspan=9><b>Southern Tucson Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>6200</b></td><td class=SensorName>Summit Elementary - Franco Basin                                                                    </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6210</b></td><td class=SensorName>Franco Wash at Swan Road                                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6220</b></td><td class=SensorName>Pima County Fairgrounds - Franco Basin                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6280</b></td><td class=SensorName>Wilmot Road South of I-10 - Franco Wash Basin                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>6290</b></td><td class=SensorName>Corona de Tucson - Lee Moore Basin                                                                  </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=WatershedHeader><td class=DataTableTitle id="Vail Area" colspan=9><b>Vail Area</b></td></tr><tr class=LabelRow><td class=AlertID><b>Alert<br>Sensor ID</b></td><td class=Description><b>Station Name</b></td><td class=Min15><b>15 min.<br>(in.)</b></td><td class=Min30><b>30 min.<br>(in.)</b></td><td class=Hour1><b>1 hour<br>(in.)</b></td><td class=Hour3><b>3 hours<br>(in.)</b></td><td class=Hour6><b>6 hours<br>(in.)</b></td><td class=Hour12><b>12 hours<br>(in.)</b></td><td class=Hour24><b>24 hours<br>(in.)</b></td></tr><tr class=SensorGroup><td><b>4220</b></td><td class=SensorName>Rancho Del Lago - Pantano Basin                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4250</b></td><td class=SensorName>Pantano Wash at Vail                                                                                </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4260</b></td><td class=SensorName>Pantano Wash at Schist                                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4270</b></td><td class=SensorName>Salcido Place - Cienega Basin                                                                       </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4280</b></td><td class=SensorName>Cienega Creek below I-10                                                                            </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4290</b></td><td class=SensorName>Mescal - Cienega Basin                                                                              </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4310</b></td><td class=SensorName>Davidson Canyon Wash above I-10                                                                     </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4320</b></td><td class=SensorName>Empire Peak - Cienega Basin                                                                         </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr><tr class=SensorGroup><td><b>4410</b></td><td class=SensorName>Haystack Mountain - Cienega Basin                                                                   </td></td><td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class=RainStatusInactive>0.00</td>
+<td class="RainStatusInactive">0.00</td>
+</tr>
+</table>
+</div>
+
+<br>
+
+<div id=footertext></div>
+<hr>
+<div id=footertext>Copyright � 2015 - 2026 Pima County Flood Control District. All rights reserved.</div>
+
+</div>
+<div id="bottom-shadow"></div>
+
+<script src="js/jquery/jquery-1.12.4.min.js"></script>
+<script src="js/jquery-ui/jquery-ui.min.js" ></script>
+<script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3&amp;"></script>
+<script>
+$(document).ready(function() {
+$('#HeaderImage').fadeIn();
+$('#CenterContent').fadeIn();
+$('#spinnerbackground').hide();
+
+// format selects
+$('#dateMonth').selectmenu({
+	icons: {button: "none"},
+	width: 22
+	});
+$('#dateDay').selectmenu({
+	icons: {button: "none"},
+	width: 22
+	})
+	.selectmenu( "menuWidget" )
+    .addClass( "jquiMenuOverflow" );
+$('#dateYear').selectmenu({
+	icons: {button: "none"},
+	width: 40
+	})
+	.selectmenu( "menuWidget" )
+    .addClass( "jquiMenuOverflow" );
+	
+$('#timeHour').selectmenu({
+	icons: {button: "none"},
+	width: 22
+	})
+	.selectmenu( "menuWidget" )
+    .addClass( "jquiMenuOverflow" );
+$('#timeMinute').selectmenu({
+	icons: {button: "none"},
+	width: 22
+	});
+$('#timeAMPM').selectmenu({
+	icons: {button: "none"},
+	width: 25
+	});
+	
+
+ $(window).scroll(function(){
+ 
+	var y = $(window).scrollTop();
+
+	if( y > 0 ){
+		$("#top-shadow").show();
+	} else {
+		$("#top-shadow").hide();
+	}
+
+	if($(window).scrollTop() + $(window).height() == $(document).height()) {
+		$("#bottom-shadow").hide(); 
+	} else {
+		$("#bottom-shadow").show();
+	}
+ });
+ 
+});
+function goToDate() {
+	var day, month, year, hour, min, ampm, dater;
+	day = $( "#dateDay" ).val();
+	month = $( "#dateMonth" ).val();
+	year = $( "#dateYear" ).val();
+	
+	hour = $( "#timeHour" ).val();
+	min = $( "#timeMinute" ).val();
+	ampm = $( "#timeAMPM" ).val();
+	if (ampm == "PM") {
+		if (parseInt(hour) == 12) {
+			hour = 12;
+		} else {
+			hour = parseInt(hour) + 12;
+		}
+	} else {
+		if (parseInt(hour) == 12) {
+			hour = 0;
+		}
+	}
+	dater = new Date(parseInt(year), parseInt(month)-1, parseInt(day), parseInt(hour), parseInt(min), 0, 0);
+	
+	//dater = month + "/" + day + "/" + year + " " + hour + ":" + min + ":00 " + ampm;
+	var newurl = document.URL;
+	if (newurl.indexOf("?") == -1) {
+		newurl = document.URL + "?datetime=" + dater.valueOf();
+	} else {
+		if (newurl.indexOf("datetime=") == -1) {
+			// datetime is not already present in url
+			newurl = document.URL + "&datetime=" + dater.valueOf();	
+		} else {
+			// datetime is already present in url, replace the time value
+			if (newurl.indexOf("&", newurl.indexOf("&datetime=") +1) == -1) {
+				// date is at end of string
+				newurl = newurl.substr(0,newurl.indexOf("datetime=")) + "datetime="+ dater.valueOf();
+			} else {
+				// date is not at end of string
+				newurl = newurl.substr(0,newurl.indexOf("datetime=")) + "datetime=" + dater.valueOf() + newurl.substr(newurl.indexOf("&", newurl.indexOf("datetime=")), newurl.length);
+			}
+		}
+	}
+	window.location.href = newurl;
+}
+</script>
+<!-- Google Analytics -->
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+  (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+  m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+
+  ga('create', 'UA-102746806-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+</body>
+</html>

@@ -219,3 +219,26 @@ def test_monsoon_digest_calls_llm_when_activity_present(temp_db, monkeypatch):
     assert "Rillito" in (decision.summary or "")
     prompt = client.messages.calls[0]["messages"][0]["content"]
     assert "rillito wash flooded" in prompt
+
+
+def test_monsoon_digest_includes_gauges_in_prompt(temp_db, monkeypatch):
+    """A recent stream-gauge reading renders into the prompt — and gauges alone
+    are enough activity to trigger the digest (no voice/APRS needed)."""
+    from db.queries import insert_gauge_reading
+    from models.schemas import GaugeReading
+
+    insert_gauge_reading(GaugeReading(
+        timestamp=datetime.now(timezone.utc),
+        source="usgs", site_id="09485700",
+        site_name="Rillito Creek at Dodge Blvd",
+        discharge_cfs=850.0, gage_height_ft=7.4,
+    ))
+    client = FakeDigestClient(DigestResponse(should_alert=True, summary="Rillito discharge spiking"))
+    monkeypatch.setattr("agents.alert.push_ntfy", lambda **kwargs: True)
+
+    decision = monsoon_digest(client=client)
+    assert client.messages.calls, "gauges alone should trigger the LLM call"
+    prompt = client.messages.calls[0]["messages"][0]["content"]
+    assert "Q=850cfs" in prompt
+    assert "Rillito" in prompt  # wash label from config/gauges.py
+    assert decision.should_alert is True

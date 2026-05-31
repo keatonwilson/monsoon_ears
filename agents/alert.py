@@ -22,7 +22,8 @@ from pydantic import BaseModel
 # `looks_like_hallucination` is re-exported here for backwards compatibility —
 # it used to live in this module before being shared with the classify stage.
 from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
-from db.queries import insert_alert, recent_aprs, recent_flood_events
+from config.gauges import site_wash
+from db.queries import insert_alert, recent_aprs, recent_flood_events, recent_gauges
 from models.schemas import AlertDecision, ExtractedEvent, Severity
 
 logger = logging.getLogger(__name__)
@@ -111,9 +112,13 @@ Recent flood-control / fire / EMS radio activity (last {voice_window} min):
 APRS weather station readings near mentioned locations (last {aprs_window} min):
 {aprs_weather}
 
+Official stream/rain gauge readings — USGS + Pima County ALERT (last {gauge_window} min):
+{gauges}
+
 Are these consistent with an active flash flood situation?
-Identify washes mentioned, correlate with nearby rainfall data,
-assess severity, and flag if road closures appear imminent.
+Identify washes mentioned, correlate with nearby rainfall AND stream-gauge
+discharge (rising discharge / gage height on a named wash is the strongest
+flood signal), assess severity, and flag if road closures appear imminent.
 """
 
 
@@ -157,6 +162,25 @@ def _format_aprs(rows) -> str:
     return "\n".join(lines)
 
 
+def _format_gauges(rows) -> str:
+    if not rows:
+        return "(none)"
+    lines = []
+    for r in rows[:30]:
+        bits = []
+        if r.discharge_cfs is not None:
+            bits.append(f"Q={r.discharge_cfs:.0f}cfs")
+        if r.gage_height_ft is not None:
+            bits.append(f"stage={r.gage_height_ft:.2f}ft")
+        if r.precip_in is not None:
+            bits.append(f"precip={r.precip_in:.2f}in")
+        wash = site_wash(r.site_id)
+        where = f" [{wash}]" if wash else ""
+        name = (r.site_name or r.site_id)
+        lines.append(f"- {r.timestamp:%H:%M} {name}{where} ({r.source}): " + (", ".join(bits) or "(no data)"))
+    return "\n".join(lines)
+
+
 _digest_client = None
 
 
@@ -172,22 +196,26 @@ def _get_digest_client():
 def monsoon_digest(
     voice_window_min: int = 60,
     aprs_window_min: int = 30,
+    gauge_window_min: int = 60,
     client=None,
     model: Optional[str] = None,
 ) -> AlertDecision:
     """Run the Sonnet correlation digest and (optionally) push via Ntfy."""
     voice_rows = recent_flood_events(minutes=voice_window_min)
     aprs_rows = recent_aprs(minutes=aprs_window_min)
+    gauge_rows = recent_gauges(minutes=gauge_window_min)
 
-    if not voice_rows and not aprs_rows:
+    if not voice_rows and not aprs_rows and not gauge_rows:
         logger.info("monsoon_digest: no recent activity, skipping LLM call")
         return AlertDecision(should_alert=False, reason="no recent activity")
 
     prompt = _MONSOON_PROMPT.format(
         voice_window=voice_window_min,
         aprs_window=aprs_window_min,
+        gauge_window=gauge_window_min,
         flood_events=_format_flood_events(voice_rows),
         aprs_weather=_format_aprs(aprs_rows),
+        gauges=_format_gauges(gauge_rows),
     )
 
     client = client if client is not None else _get_digest_client()

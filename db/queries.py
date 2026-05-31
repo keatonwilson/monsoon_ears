@@ -3,12 +3,20 @@ from typing import Optional
 
 from sqlmodel import select
 
-from db.database import AlertRow, APRSEventRow, EventThreadRow, TranscriptionEventRow, get_session
+from db.database import (
+    AlertRow,
+    APRSEventRow,
+    EventThreadRow,
+    GaugeReadingRow,
+    TranscriptionEventRow,
+    get_session,
+)
 from models.schemas import (
     AlertDecision,
     APRSEvent,
     ClassifiedEvent,
     ExtractedEvent,
+    GaugeReading,
     TranscriptionEvent,
     TransmissionType,
 )
@@ -139,6 +147,36 @@ def recent_aprs(minutes: int = 30) -> list[APRSEventRow]:
             select(APRSEventRow)
             .where(APRSEventRow.timestamp >= cutoff)
             .order_by(APRSEventRow.id.desc())
+        )
+        return list(session.exec(stmt))
+
+
+def insert_gauge_reading(reading: GaugeReading) -> int:
+    row = GaugeReadingRow(
+        timestamp=reading.timestamp,
+        source=reading.source,
+        site_id=reading.site_id,
+        site_name=reading.site_name,
+        lat=reading.lat,
+        lon=reading.lon,
+        discharge_cfs=reading.discharge_cfs,
+        gage_height_ft=reading.gage_height_ft,
+        precip_in=reading.precip_in,
+    )
+    with get_session() as session:
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return row.id
+
+
+def recent_gauges(minutes: int = 60) -> list[GaugeReadingRow]:
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=minutes)
+    with get_session() as session:
+        stmt = (
+            select(GaugeReadingRow)
+            .where(GaugeReadingRow.timestamp >= cutoff)
+            .order_by(GaugeReadingRow.id.desc())
         )
         return list(session.exec(stmt))
 

@@ -21,7 +21,7 @@ fi
 # Always-on services. monsoon-p25.service is intentionally excluded here — it
 # cannot run until op25 is built on the Pi and PCWIN decode is confirmed (see
 # deploy/op25_setup.md). Enable it by hand once validated.
-SERVICES=(monsoon-runner monsoon-worker monsoon-aprs)
+SERVICES=(monsoon-runner monsoon-worker monsoon-aprs monsoon-gauges)
 
 for svc in "${SERVICES[@]}"; do
   unit="$UNIT_DIR/$svc.service"

@@ -66,6 +66,25 @@ class APRSEvent(BaseModel):
     source: str = "aprs"
 
 
+class GaugeReading(BaseModel):
+    """A single reading from a stream/rain gauge (USGS or Pima County ALERT).
+
+    Stream discharge is the strongest flash-flood signal; gage height and
+    precip round it out. All measures optional — a given site may report only
+    some parameters.
+    """
+    id: Optional[int] = None
+    timestamp: datetime
+    source: str  # "usgs" | "pima_alert"
+    site_id: str
+    site_name: Optional[str] = None
+    lat: Optional[float] = None
+    lon: Optional[float] = None
+    discharge_cfs: Optional[float] = None
+    gage_height_ft: Optional[float] = None
+    precip_in: Optional[float] = None
+
+
 class AlertDecision(BaseModel):
     should_alert: bool
     reason: Optional[str] = None
