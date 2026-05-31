@@ -23,6 +23,7 @@ Live captures already include verified Tucson Rural Metro / AMR dispatch traffic
 
 - **Three parallel decode paths, one agent graph.** Analog FM voice, P25 Phase II trunked digital (planned), and APRS-IS packet data all converge on a single LangGraph pipeline. Each has a different physical-layer decoder; the downstream intelligence is identical.
 - **Activity-hold frequency scanner.** A single $40 dongle can only tune one channel at a time, so the scanner probes each priority frequency for ~1 s using RMS-domain squelch, holds when signal appears, and resumes scanning after a configurable hangover. Periodically suspends scanning to visit NOAA Weather Radio for forecast context. The probe audio is prepended to the first hold chunk so short transmissions don't slip between cycles.
+- **One dongle, scheduled — an SDR supervisor with a hybrid "Band Manager."** Analog FM and P25/PCWIN can't both hold the SDR at once, so a single supervisor process owns the device and time-shares the two RF legs: it runs one, holds it for an assigned dwell window, then cleanly tears it down (so the SDR fully releases) and switches. The split comes from a Band Manager that's deterministic by default (a P25-primary rota that always works, no LLM) but, when enabled, lets a cheap model re-weight the dwell from live conditions already in the DB — rising stream-gauge discharge, recent flood/fire/EMS traffic, monsoon season — camping on PCWIN when flooding looks active and widening the analog sweep when it's quiet. The agent can only *tune* the rota: its output is clamped and any failure falls back to the deterministic plan. The whole loop is dependency-injected (fake processes + fake clock), so it's unit-tested without an SDR.
 - **Multi-stage signal gating.** A coarse RMS-domain squelch drops noise-only chunks (free), then WebRTC VAD finds speech boundaries inside the survivors (cheap), and only then does Whisper run (expensive). Wasted GPU-equivalent compute is minimized at every layer.
 - **Whisper hallucination filtering.** Whisper is notorious for emitting ghost text on silence (lone CJK characters, "you", "Thanks for watching!"). The pipeline uses Whisper's own per-segment `no_speech_prob`, `avg_logprob`, and `compression_ratio` to drop these before they reach the database.
 - **Decoupled agent worker.** A separate Pi-side process polls SQLite for unclassified rows, runs a LangGraph DAG (`classify` → `extract` → `alert`) with Anthropic Haiku 4.5 via `instructor` (structured Pydantic output), geocodes locations via cached Nominatim, and pushes high-severity events to Ntfy.sh. Decoupling means Anthropic outages just backlog the queue instead of breaking capture.
@@ -89,7 +90,7 @@ Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC op
 - RTL-SDR Blog V3 + dipole antenna kit
 - Headless, SSH-only, no monitor
 
-A single RTL-SDR can only tune one frequency at a time. The current ingestion pipeline parks on 154.370 (Rural Metro) by default; a second dongle (~$35) is required to monitor APRS in parallel.
+A single RTL-SDR can only tune one frequency at a time, so the SDR supervisor time-shares it between the analog scanner and P25/PCWIN (one RF leg at a time — see the Band Manager note above). APRS does **not** compete for the dongle: it arrives over the public APRS-IS internet feed, so no second radio is needed.
 
 ## Stack
 
@@ -136,20 +137,20 @@ Then any device on the LAN points its browser at `http://monsoon-ears.local:8501
 
 ### Auto-start with systemd
 
-The three always-on backend processes (ingestion runner, agent worker, APRS-IS feed) ship as systemd units in [`deploy/systemd/`](./deploy/systemd) so the Pi recovers them after a crash or reboot. Install them once, from the repo root on the Pi:
+The always-on backend processes (SDR supervisor, agent worker, APRS-IS feed, gauge poller) ship as systemd units in [`deploy/systemd/`](./deploy/systemd) so the Pi recovers them after a crash or reboot. Install them once, from the repo root on the Pi:
 
 ```bash
 sudo deploy/install_services.sh
 ```
 
-The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-runner`, `monsoon-worker`, and `monsoon-aprs`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
+The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-sdr`, `monsoon-worker`, `monsoon-aprs`, and `monsoon-gauges`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
 
 ```bash
-systemctl status monsoon-runner monsoon-worker monsoon-aprs
-journalctl -u monsoon-runner -f
+systemctl status monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges
+journalctl -u monsoon-sdr -f
 ```
 
-`monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interface processes are launched via `scripts/run_api.sh` / `scripts/run_dashboard.sh` (or your own units).
+`monsoon-sdr` owns the dongle and runs the analog/P25 legs itself — so `monsoon-runner` and `monsoon-p25` are **not** enabled directly (they'd fight for the SDR); they remain for manual/debug runs of a single path. Which legs the supervisor will run is gated by `SDR_ENABLE_*` in `.env`. `monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interface processes are launched via `scripts/run_api.sh` / `scripts/run_dashboard.sh` (or your own units).
 
 ### Port table
 

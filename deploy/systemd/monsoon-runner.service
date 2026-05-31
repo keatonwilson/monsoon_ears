@@ -1,4 +1,8 @@
 [Unit]
+# DEPRECATED as a standalone service: monsoon-sdr now owns the dongle and runs
+# the analog leg itself (one RF leg at a time). Do NOT enable this alongside
+# monsoon-sdr — they would fight for the SDR. Kept only for manual/debug runs of
+# the analog path in isolation.
 Description=Monsoon Ears — analog FM ingestion (scanner -> VAD -> Whisper -> SQLite)
 After=network-online.target
 Wants=network-online.target

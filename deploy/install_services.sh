@@ -18,10 +18,12 @@ if [[ "$(id -u)" -ne 0 ]]; then
   exit 1
 fi
 
-# Always-on services. monsoon-p25.service is intentionally excluded here — it
-# cannot run until op25 is built on the Pi and PCWIN decode is confirmed (see
-# deploy/op25_setup.md). Enable it by hand once validated.
-SERVICES=(monsoon-runner monsoon-worker monsoon-aprs monsoon-gauges)
+# Always-on services. monsoon-sdr owns the dongle and time-shares the RF legs,
+# so monsoon-runner and monsoon-p25 are NOT enabled directly here — the
+# supervisor launches those runners itself, one at a time (they'd otherwise
+# fight for the SDR). The RF legs it will run are gated by SDR_ENABLE_* in .env
+# (P25 stays off until op25's audio backend is wired — deploy/op25_setup.md §4).
+SERVICES=(monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges)
 
 for svc in "${SERVICES[@]}"; do
   unit="$UNIT_DIR/$svc.service"
@@ -46,4 +48,4 @@ echo "Done. Check status with:"
 for svc in "${SERVICES[@]}"; do
   echo "    systemctl status $svc"
 done
-echo "Tail logs with: journalctl -u monsoon-runner -f"
+echo "Tail logs with: journalctl -u monsoon-sdr -f"

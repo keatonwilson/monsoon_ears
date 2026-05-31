@@ -68,6 +68,33 @@ def test_health(api_client):
     assert r.json()["status"] == "ok"
 
 
+# --- /sdr/status -------------------------------------------------------------
+
+
+def test_sdr_status_unavailable_when_no_file(api_client, tmp_path, monkeypatch):
+    monkeypatch.setenv("SDR_STATUS_FILE", str(tmp_path / "missing.json"))
+    r = api_client.get("/sdr/status")
+    assert r.status_code == 200
+    assert r.json() == {"available": False}
+
+
+def test_sdr_status_surfaces_supervisor_file(api_client, tmp_path, monkeypatch):
+    import json
+    status_file = tmp_path / "sdr_status.json"
+    status_file.write_text(json.dumps({
+        "current_leg": "p25", "plan_source": "agent",
+        "rationale": "Rillito rising — camp on PCWIN.",
+        "segments": [{"leg": "p25", "seconds": 420.0}, {"leg": "analog", "seconds": 180.0}],
+    }))
+    monkeypatch.setenv("SDR_STATUS_FILE", str(status_file))
+    r = api_client.get("/sdr/status")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["available"] is True
+    assert body["current_leg"] == "p25"
+    assert body["plan_source"] == "agent"
+
+
 # --- /events -----------------------------------------------------------------
 
 
