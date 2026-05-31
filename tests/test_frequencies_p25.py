@@ -70,7 +70,13 @@ def test_whitelist_contains_only_active_talkgroups():
     assert listed == {tg.dec for tg in active_talkgroups()}
 
 
-def test_trunk_tsv_carries_pcwin_identity():
+def test_trunk_tsv_control_channels_and_auto_nac():
     trunk = (_OP25_DIR / "trunk.tsv").read_text()
-    assert PCWIN.sysid in trunk
     assert "853.7125" in trunk  # full-precision control channel, not truncated
+    # NAC column must be 0 (auto-detect). NAC is per-channel and independent of
+    # the SYSID — op25 learns SYSID/WACN from the control channel, so the SYSID
+    # must NOT be hardcoded into the NAC slot (that bug rejected every frame).
+    data_row = [ln for ln in trunk.splitlines() if ln.startswith(PCWIN.name)][0]
+    nac_col = data_row.split("\t")[3]
+    assert nac_col == "0", f"NAC column should be auto (0), got {nac_col!r}"
+    assert PCWIN.sysid not in trunk

@@ -34,8 +34,13 @@ def render_trunk_tsv() -> str:
         "Sysname\tControl Channel List\tOffset\tNAC\tModulation"
         "\tTGID Tags File\tWhitelist\tBlacklist\n"
     )
+    # NAC column is 0 = auto-detect. NAC is per-channel and independent of the
+    # System ID; on PCWIN the control-channel NAC is 0x3B1 while the SYSID is
+    # 0x3BB. Hardcoding the SYSID here made op25 reject every frame
+    # ("NAC check fail: received=3b1, expected=3bb"); 0 lets op25 lock whatever
+    # NAC the control channel actually uses. (Verified live on the Pi.)
     row = (
-        f"{PCWIN.name}\t{control}\t0\t0x{PCWIN.sysid}\tcqpsk"
+        f"{PCWIN.name}\t{control}\t0\t0\tcqpsk"
         f"\ttg_tags.tsv\twhitelist.tsv\t\n"
     )
     return _AUTOGEN + header + row
