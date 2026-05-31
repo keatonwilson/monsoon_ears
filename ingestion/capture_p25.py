@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import logging
 import re
+import socket
+import threading
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -33,6 +35,8 @@ import numpy as np
 logger = logging.getLogger(__name__)
 
 WHISPER_SR = 16_000
+# op25 voice audio is natively 8 kHz, signed-16-bit, mono, little-endian.
+OP25_AUDIO_SR = 8_000
 
 # op25 per-call WAV filename contract: "<talkgroup_dec>-<epoch_millis>.wav".
 # The runbook configures op25's call recorder to write files this way.
@@ -44,7 +48,7 @@ class P25Call:
     """One decoded voice transmission handed off by op25."""
     audio: np.ndarray       # mono float32, WHISPER_SR
     sample_rate: int
-    talkgroup_id: int
+    talkgroup_id: Optional[int]   # None if op25's console didn't name one in time
     timestamp: datetime
 
 
@@ -132,6 +136,227 @@ class WavDirBackend:
                     logger.exception("failed to read op25 wav %s", path)
                 finally:
                     path.unlink(missing_ok=True)
+
+
+# --- UDP backend (the real op25 `-U` path) ----------------------------------
+#
+# Live finding (deploy/op25_setup.md §4): with `-U`, op25 does NOT write per-call
+# WAVs — it streams decoded voice as raw 16-bit PCM over UDP to 127.0.0.1:23456,
+# and exposes the *current* call's talkgroup via its :8080 HTTP console (the same
+# JSON the web UI polls). So a call boundary is an inter-packet gap in the UDP
+# stream; the talkgroup is whatever the console reported during that call.
+#
+# The pure pieces below (PCM decode, console-message parsing, call segmentation)
+# are unit-tested; the socket/HTTP/thread shell in `UdpP25Backend` is what needs
+# live validation on the Pi.
+
+
+def pcm_bytes_to_float32(buf: bytes) -> np.ndarray:
+    """Decode raw little-endian int16 mono PCM into float32 in [-1, 1]. Pure."""
+    if not buf:
+        return np.zeros(0, dtype=np.float32)
+    # Drop a trailing odd byte (a partial sample) defensively.
+    if len(buf) % 2:
+        buf = buf[:-1]
+    samples = np.frombuffer(buf, dtype="<i2")
+    return samples.astype(np.float32) / 32768.0
+
+
+def parse_active_tgid(messages) -> Optional[int]:
+    """Pull the active voice talkgroup from an op25 console JSON response. Pure.
+
+    op25's HTTP console returns a list of message dicts; a voice grant shows up
+    as a `change_freq` message carrying `tgid` (and `tag`). We prefer the last
+    `change_freq`, then fall back to any message exposing a positive `tgid`.
+    Tolerant of shape drift — returns None if nothing usable is present.
+    """
+    if not isinstance(messages, list):
+        return None
+    fallback: Optional[int] = None
+    chosen: Optional[int] = None
+    for msg in messages:
+        if not isinstance(msg, dict):
+            continue
+        tg = msg.get("tgid")
+        try:
+            tg = int(tg) if tg is not None else None
+        except (TypeError, ValueError):
+            tg = None
+        if not tg or tg <= 0:
+            continue
+        if msg.get("json_type") == "change_freq":
+            chosen = tg
+        fallback = tg
+    return chosen if chosen is not None else fallback
+
+
+@dataclass
+class CallAccumulator:
+    """Segment a gapped PCM stream into calls. Pure (caller supplies the clock).
+
+    Feed it (timestamp, pcm_float32) as datagrams arrive and a current talkgroup;
+    when more than `gap_sec` elapses with no audio, `flush_if_idle(now)` returns
+    the completed call's (audio, tgid, started_at) and resets. The talkgroup
+    assigned is the one active when the call *started* (the grant that opened it).
+    """
+
+    gap_sec: float = 0.8
+    _buf: list[np.ndarray] = None  # type: ignore[assignment]
+    _last_audio_t: Optional[float] = None
+    _call_tgid: Optional[int] = None
+    _started_at: Optional[float] = None
+
+    def __post_init__(self):
+        self._buf = []
+
+    def feed(self, now: float, pcm: np.ndarray, tgid: Optional[int]) -> None:
+        if pcm.size == 0:
+            return
+        if not self._buf:  # opening a new call
+            self._started_at = now
+            self._call_tgid = tgid
+        elif self._call_tgid is None and tgid is not None:
+            # Console caught up mid-call — adopt the first tgid we learn.
+            self._call_tgid = tgid
+        self._buf.append(pcm)
+        self._last_audio_t = now
+
+    def flush_if_idle(self, now: float) -> Optional[tuple[np.ndarray, Optional[int], float]]:
+        if not self._buf or self._last_audio_t is None:
+            return None
+        if (now - self._last_audio_t) < self.gap_sec:
+            return None
+        audio = np.concatenate(self._buf)
+        started = self._started_at if self._started_at is not None else now
+        out = (audio, self._call_tgid, started)
+        self._buf = []
+        self._last_audio_t = None
+        self._call_tgid = None
+        self._started_at = None
+        return out
+
+
+class Op25ConsolePoller:
+    """Background poller of op25's :8080 HTTP console for the active talkgroup."""
+
+    def __init__(self, base_url: str, interval_sec: float = 0.4):
+        self.base_url = base_url.rstrip("/")
+        self.interval_sec = interval_sec
+        self._tgid: Optional[int] = None
+        self._stop = threading.Event()
+        self._thread: Optional[threading.Thread] = None
+
+    @property
+    def tgid(self) -> Optional[int]:
+        return self._tgid
+
+    def _poll_once(self) -> None:
+        import requests
+
+        try:
+            resp = requests.post(
+                f"{self.base_url}/",
+                json=[{"command": "update", "arg1": 0, "arg2": 0}],
+                timeout=2,
+            )
+            resp.raise_for_status()
+            tg = parse_active_tgid(resp.json())
+            if tg is not None:
+                self._tgid = tg
+        except Exception as exc:  # noqa: BLE001 — console may blip; keep last tgid
+            logger.debug("op25 console poll failed: %s", exc)
+
+    def _run(self) -> None:
+        while not self._stop.is_set():
+            self._poll_once()
+            self._stop.wait(self.interval_sec)
+
+    def start(self) -> None:
+        self._thread = threading.Thread(target=self._run, name="op25-console", daemon=True)
+        self._thread.start()
+
+    def stop(self) -> None:
+        self._stop.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+
+class UdpP25Backend:
+    """Read op25's UDP PCM stream and yield one P25Call per voice transmission.
+
+    Pairs each call with the talkgroup reported by op25's HTTP console. Replaces
+    WavDirBackend for the `-U` op25 setup; everything downstream is unchanged.
+    """
+
+    def __init__(
+        self,
+        udp_host: str = "127.0.0.1",
+        udp_port: int = 23456,
+        console_url: Optional[str] = "http://127.0.0.1:8080",
+        src_sample_rate: int = OP25_AUDIO_SR,
+        gap_sec: float = 0.8,
+        recv_bytes: int = 32768,
+    ):
+        self.udp_host = udp_host
+        self.udp_port = udp_port
+        self.src_sample_rate = src_sample_rate
+        self.gap_sec = gap_sec
+        self.recv_bytes = recv_bytes
+        self._closed = False
+        self._sock: Optional[socket.socket] = None
+        self._poller = Op25ConsolePoller(console_url) if console_url else None
+
+    def close(self) -> None:
+        self._closed = True
+        if self._poller:
+            self._poller.stop()
+        if self._sock:
+            try:
+                self._sock.close()
+            except OSError:
+                pass
+
+    def _emit(self, audio_src: np.ndarray, tgid: Optional[int], started_at: float) -> P25Call:
+        audio = _resample_to_16k(audio_src, self.src_sample_rate)
+        return P25Call(
+            audio=audio,
+            sample_rate=WHISPER_SR,
+            talkgroup_id=tgid,
+            timestamp=datetime.now(timezone.utc),
+        )
+
+    def iter_calls(self) -> Iterator[P25Call]:
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        sock.bind((self.udp_host, self.udp_port))
+        # Wake periodically so we can detect the inter-call gap even with no data.
+        sock.settimeout(min(self.gap_sec, 0.5))
+        self._sock = sock
+        if self._poller:
+            self._poller.start()
+        logger.info("UdpP25Backend listening on %s:%d (console=%s)",
+                    self.udp_host, self.udp_port, bool(self._poller))
+
+        acc = CallAccumulator(gap_sec=self.gap_sec)
+        while not self._closed:
+            now = time.monotonic()
+            try:
+                data, _ = sock.recvfrom(self.recv_bytes)
+                tgid = self._poller.tgid if self._poller else None
+                acc.feed(time.monotonic(), pcm_bytes_to_float32(data), tgid)
+            except socket.timeout:
+                pass
+            except OSError:
+                break  # socket closed by close()
+            done = acc.flush_if_idle(time.monotonic())
+            if done is not None:
+                audio_src, tgid, started = done
+                yield self._emit(audio_src, tgid, started)
+        # Drain a final in-flight call on shutdown.
+        done = acc.flush_if_idle(time.monotonic() + self.gap_sec + 1)
+        if done is not None:
+            audio_src, tgid, started = done
+            yield self._emit(audio_src, tgid, started)
 
 
 # --- Ingestion loop ----------------------------------------------------------

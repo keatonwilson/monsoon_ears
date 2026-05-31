@@ -25,7 +25,12 @@ import sys
 
 from dotenv import load_dotenv
 
-from ingestion.capture_p25 import WavDirBackend, run_p25_ingestion
+from ingestion.capture_p25 import (
+    OP25_AUDIO_SR,
+    UdpP25Backend,
+    WavDirBackend,
+    run_p25_ingestion,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +48,6 @@ def main() -> int:
     _setup_logging()
     log = logging.getLogger("runner_p25")
 
-    wav_dir = os.getenv("P25_WAV_DIR", "./data/op25_calls")
-    poll_sec = float(os.getenv("P25_POLL_SEC", 1.0))
     op25_cmd = os.getenv("OP25_CMD", "").strip()
 
     op25_proc: subprocess.Popen | None = None
@@ -52,9 +55,26 @@ def main() -> int:
         log.info("launching op25: %s", op25_cmd)
         op25_proc = subprocess.Popen(shlex.split(op25_cmd))
     else:
-        log.info("OP25_CMD empty; assuming op25 runs separately, watching %s", wav_dir)
+        log.info("OP25_CMD empty; assuming op25 runs separately")
 
-    backend = WavDirBackend(wav_dir, poll_sec=poll_sec)
+    # Backend selection. The real op25 `-U` path streams PCM over UDP (default);
+    # WavDirBackend remains for a hypothetical per-call WAV recorder setup.
+    backend_kind = os.getenv("P25_BACKEND", "udp").strip().lower()
+    if backend_kind == "wavdir":
+        wav_dir = os.getenv("P25_WAV_DIR", "./data/op25_calls")
+        poll_sec = float(os.getenv("P25_POLL_SEC", 1.0))
+        backend = WavDirBackend(wav_dir, poll_sec=poll_sec)
+        log.info("p25 backend=wavdir watching %s", wav_dir)
+    else:
+        backend = UdpP25Backend(
+            udp_host=os.getenv("P25_UDP_HOST", "127.0.0.1"),
+            udp_port=int(os.getenv("P25_UDP_PORT", 23456)),
+            console_url=os.getenv("P25_CONSOLE_URL", "http://127.0.0.1:8080") or None,
+            src_sample_rate=int(os.getenv("P25_AUDIO_SR", OP25_AUDIO_SR)),
+            gap_sec=float(os.getenv("P25_GAP_SEC", 0.8)),
+        )
+        log.info("p25 backend=udp port=%s console=%s",
+                 os.getenv("P25_UDP_PORT", "23456"), os.getenv("P25_CONSOLE_URL", "http://127.0.0.1:8080"))
 
     shutting_down = False
 
@@ -72,7 +92,7 @@ def main() -> int:
     signal.signal(signal.SIGINT, _shutdown)
     signal.signal(signal.SIGTERM, _shutdown)
 
-    log.info("starting p25 ingestion, wav_dir=%s poll=%.1fs", wav_dir, poll_sec)
+    log.info("starting p25 ingestion (backend=%s)", backend_kind)
     try:
         run_p25_ingestion(backend)
     finally:
