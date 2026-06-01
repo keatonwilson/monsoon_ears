@@ -5,7 +5,12 @@ from types import SimpleNamespace
 
 import pytest
 
-from agents.extract import ExtractResponse, extract_event, geocode
+from agents.extract import (
+    ExtractResponse,
+    _looks_geocodable,
+    extract_event,
+    geocode,
+)
 from models.schemas import (
     ClassifiedEvent,
     ExtractedEvent,
@@ -56,14 +61,17 @@ def _isolate_geocode_cache(tmp_path, monkeypatch):
     ex._geocoder = None
 
 
-def _classified(text="Med 843, respond code 2, TC unknown, 205 W Irvington Rd") -> ClassifiedEvent:
+def _classified(
+    text="Med 843, respond code 2, TC unknown, 205 W Irvington Rd",
+    confidence=0.9,
+) -> ClassifiedEvent:
     return ClassifiedEvent(
         timestamp=datetime.now(timezone.utc),
         frequency_mhz=154.370,
         raw_text=text,
         duration_sec=4.0,
         transmission_type=TransmissionType.EMS,
-        confidence=0.9,
+        confidence=confidence,
     )
 
 
@@ -205,3 +213,103 @@ def test_extract_includes_raw_text_for_fixture_samples(transcripts_by_category):
         extract_event(classified, client=client, skip_geocode=True)
         prompt = client.messages.calls[0]["messages"][0]["content"]
         assert rec["raw_text"] in prompt
+
+
+# --- A2: confidence + address-like gating -------------------------------------
+
+@pytest.mark.parametrize("loc", [
+    "205 W Irvington Rd",        # house number
+    "Speedway and Kolb",         # intersection
+    "Grant & Oracle",            # intersection (ampersand)
+    "Rillito",                   # named wash
+    "I-10 near Ina",             # highway
+    "River Road",                # street suffix
+])
+def test_looks_geocodable_accepts_addresses(loc):
+    assert _looks_geocodable(loc)
+
+
+@pytest.mark.parametrize("loc", [
+    "northwest Maine",
+    "coffee depraved",
+    "the location",
+    "ab",
+    "",
+])
+def test_looks_geocodable_rejects_noise(loc):
+    assert not _looks_geocodable(loc)
+
+
+def test_extract_skips_geocode_below_confidence():
+    response = ExtractResponse(locations=["205 W Irvington Rd"], severity=Severity.LOW)
+    client = FakeClient(response)
+    geocoder = FakeGeocoder()
+    out = extract_event(_classified(confidence=0.3), client=client, geocoder=geocoder)
+    assert out.lat is None and out.lon is None
+    assert geocoder.queries == []  # low confidence — never reached the geocoder
+
+
+def test_extract_skips_geocode_for_non_address_location():
+    response = ExtractResponse(locations=["northwest Maine"], severity=Severity.LOW)
+    client = FakeClient(response)
+    geocoder = FakeGeocoder()
+    out = extract_event(_classified(), client=client, geocoder=geocoder)
+    assert out.lat is None
+    assert geocoder.queries == []  # junk string never geocoded
+
+
+def test_extract_geocodes_first_address_like_location():
+    # The first entry is noise; the extractor should fall through to the address.
+    response = ExtractResponse(locations=["the area", "205 W Irvington Rd"], severity=Severity.MEDIUM)
+    client = FakeClient(response)
+    geocoder = FakeGeocoder(lat=32.18, lon=-111.00)
+    out = extract_event(_classified(), client=client, geocoder=geocoder)
+    assert (out.lat, out.lon) == (32.18, -111.00)
+    assert geocoder.queries and "Irvington" in geocoder.queries[0]
+
+
+# --- B2: cache poisoning fix --------------------------------------------------
+
+def test_geocode_does_not_cache_provider_error(monkeypatch):
+    """A provider outage must NOT be cached — the next call re-queries (B2)."""
+    import agents.extract as ex
+    boom = _BoomGeocoder()
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("boom", boom)])
+    assert geocode("Speedway and Kolb") == (None, None)
+    assert geocode("Speedway and Kolb") == (None, None)
+    assert len(boom.queries) == 2  # re-queried, not poisoned-cached
+
+
+def test_geocode_caches_clean_miss_then_requeries_after_ttl(monkeypatch):
+    """A clean no-match is cached (no re-query within TTL) but expires."""
+    import agents.extract as ex
+    nomatch = _NoMatchGeocoder()
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("nomatch", nomatch)])
+
+    assert geocode("Speedway and Kolb") == (None, None)
+    assert geocode("Speedway and Kolb") == (None, None)
+    assert len(nomatch.queries) == 1  # second call served from cache
+
+    monkeypatch.setenv("GEOCODE_MISS_TTL_SEC", "0")  # everything is now expired
+    assert geocode("Speedway and Kolb") == (None, None)
+    assert len(nomatch.queries) == 2  # re-queried after TTL
+
+
+def test_geocode_legacy_null_entry_is_requeried(monkeypatch):
+    """Legacy [None, None] entries (poisoned by the old bug) self-heal."""
+    import agents.extract as ex
+    ex._cache = {"tucson, az | speedway and kolb": [None, None]}
+    good = FakeGeocoder(lat=32.25, lon=-110.92)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("good", good)])
+    assert geocode("Speedway and Kolb") == (32.25, -110.92)
+    assert good.queries  # the poisoned null did not short-circuit
+
+
+def test_geocode_legacy_hit_entry_is_served(monkeypatch):
+    """Legacy [lat, lon] hits stay valid without a re-query."""
+    import agents.extract as ex
+    ex._cache = {"tucson, az | river road": [32.30, -110.95]}
+    good = FakeGeocoder()
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("good", good)])
+    assert geocode("River Road") == (32.30, -110.95)
+    assert good.queries == []  # served from legacy cache
