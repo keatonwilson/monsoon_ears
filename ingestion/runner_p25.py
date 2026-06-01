@@ -18,10 +18,12 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shlex
 import signal
 import subprocess
 import sys
+import threading
 
 from dotenv import load_dotenv
 
@@ -33,6 +35,27 @@ from ingestion.capture_p25 import (
 )
 
 logger = logging.getLogger(__name__)
+
+# op25 logs "failed to open audio device: default" on the headless Pi on every
+# start — expected, because we take audio over UDP (`-U`), not a sound card.
+# It's harmless but floods journalctl, so we drop just that line (everything
+# else op25 writes to stderr is still forwarded to our log).
+_OP25_NOISE_RE = re.compile(r"failed to open audio device")
+
+
+def _forward_op25_stderr(proc: subprocess.Popen, log: logging.Logger) -> None:
+    """Pump op25's stderr into our logger, suppressing the known-benign
+    audio-device line. Runs in a daemon thread for the life of the op25 process."""
+    if proc.stderr is None:
+        return
+    for raw in iter(proc.stderr.readline, b""):
+        line = raw.decode("utf-8", "replace").rstrip()
+        if not line:
+            continue
+        if _OP25_NOISE_RE.search(line):
+            log.debug("op25 (suppressed): %s", line)
+            continue
+        log.info("op25: %s", line)
 
 
 def _setup_logging() -> None:
@@ -53,7 +76,12 @@ def main() -> int:
     op25_proc: subprocess.Popen | None = None
     if op25_cmd:
         log.info("launching op25: %s", op25_cmd)
-        op25_proc = subprocess.Popen(shlex.split(op25_cmd))
+        # Capture stderr so we can filter op25's benign audio-device spam; a
+        # daemon thread forwards the rest to our log.
+        op25_proc = subprocess.Popen(shlex.split(op25_cmd), stderr=subprocess.PIPE)
+        threading.Thread(
+            target=_forward_op25_stderr, args=(op25_proc, log), daemon=True
+        ).start()
         # op25's `-U` audio_thread binds UDP :23456 itself (rx.py __init__). If we
         # bind our UDP backend first, op25 dies with "Address already in use", so
         # give op25 a head start to come up and grab the port before we attach.
