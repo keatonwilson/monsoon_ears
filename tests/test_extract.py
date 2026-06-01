@@ -134,6 +134,30 @@ def test_geocode_all_providers_fail_returns_none(monkeypatch):
     assert geocode("Nowhere St") == (None, None)
 
 
+class _NoMatchGeocoder:
+    """Returns None (clean no-match), like Nominatim on an unparseable address."""
+
+    def __init__(self):
+        self.queries: list[str] = []
+
+    def geocode(self, query, timeout=10):
+        self.queries.append(query)
+        return None
+
+
+def test_geocode_continues_past_clean_no_match(monkeypatch):
+    """A None (no-match) from one provider must NOT stop the chain — the next
+    provider gets a shot (the bug that filled 0 rows in the first backfill)."""
+    import agents.extract as ex
+    nomatch = _NoMatchGeocoder()
+    good = FakeGeocoder(lat=32.28, lon=-110.94)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("nomatch", nomatch), ("good", good)])
+
+    lat, lon = geocode("River Rd and Campbell Ave")
+    assert (lat, lon) == (32.28, -110.94)
+    assert nomatch.queries and good.queries  # both consulted
+
+
 def test_default_user_agent_is_not_placeholder(monkeypatch):
     """Regression: the public Nominatim 403s contact-less / example.com agents,
     which silently zeroed geocoding in the first soak."""

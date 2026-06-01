@@ -181,15 +181,18 @@ def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[flo
                 if result is not None:
                     lat, lon = float(result.latitude), float(result.longitude)
                     break  # got a hit — stop the chain
-                # A clean "no match" from a good provider: don't keep hammering.
-                logger.debug("geocode: %s found no match for %r", name, location)
-                break
+                # A no-match (None) is NOT authoritative: Nominatim often can't
+                # parse intersections / vague phrasing that ArcGIS or Census
+                # resolve fine. So fall through to the next provider rather than
+                # giving up here.
+                logger.debug("geocode: %s found no match for %r — trying next", name, location)
+                continue
             except Exception as exc:  # noqa: BLE001 — try the next provider
                 logger.warning("geocode via %s failed for %r: %s — trying next provider",
                                name, location, exc)
                 continue
         else:
-            logger.warning("geocode: all providers failed for %r", location)
+            logger.debug("geocode: no provider resolved %r", location)
 
         cache[key] = [lat, lon]
         try:
