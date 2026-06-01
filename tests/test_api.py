@@ -213,3 +213,24 @@ def test_thread_by_id_includes_events(api_client):
 def test_thread_404(api_client):
     assert api_client.get("/threads/9999").status_code == 404
     assert api_client.post("/threads/9999/summarize").status_code == 404
+
+
+def test_thread_serializer_exposes_source_and_talkgroup(api_client):
+    """P25 threads carry source + a human talkgroup label (no 0.0 MHz reliance)."""
+    from datetime import timedelta
+    from db.queries import insert_transcription
+    from models.schemas import TranscriptionEvent
+    base = datetime.now(timezone.utc) - timedelta(minutes=5)
+    for i in range(2):
+        insert_transcription(TranscriptionEvent(
+            timestamp=base + timedelta(seconds=15 * i),
+            frequency_mhz=0.0, raw_text=f"p25 frag {i}", duration_sec=2.0,
+            source="p25", talkgroup_id=15001,
+        ))
+    t = api_client.get("/threads").json()["results"][0]
+    assert t["source"] == "p25"
+    assert t["talkgroup_id"] == 15001
+    assert t["talkgroup_label"] == "TFD A2 — All Dispatches"
+    # Per-event detail carries the label too.
+    detail = api_client.get(f"/threads/{t['id']}").json()
+    assert detail["events"][0]["talkgroup_label"] == "TFD A2 — All Dispatches"

@@ -63,6 +63,17 @@ SEVERITY_COLORS = {
     "unknown": "#999999",
 }
 
+# Signal source (radio leg / feed), distinct from transmission_type so the
+# dashboard can call out *how* a cluster was captured: P25 trunked, analog FM,
+# or APRS-IS. Keyed by the `source` column value.
+SOURCE_COLORS = {
+    "p25": "#2c3e50",     # dark slate — trunked digital
+    "analog": "#16a085",  # teal — analog FM
+    "aprs": "#9b59b6",    # purple — APRS-IS
+}
+
+SOURCE_LABELS = {"p25": "P25", "analog": "Analog FM", "aprs": "APRS"}
+
 
 def chip(text: str, color: str) -> str:
     """Inline-styled HTML chip — Streamlit renders it via st.markdown(unsafe_allow_html=True)."""
@@ -83,6 +94,25 @@ def severity_chip(s: Optional[str]) -> str:
     if not s or s == "unknown":
         return ""
     return chip(s.upper(), SEVERITY_COLORS.get(s, SEVERITY_COLORS["unknown"]))
+
+
+def source_chip(source: Optional[str]) -> str:
+    """Badge for the signal source (P25 / Analog FM / APRS)."""
+    if not source:
+        return ""
+    label = SOURCE_LABELS.get(source, source.upper())
+    return chip(label, SOURCE_COLORS.get(source, "#777777"))
+
+
+def channel_label(row: dict) -> str:
+    """Human channel for an event/thread dict: talkgroup name for P25, frequency
+    for analog. Shared by the live feed and the threads tab so both render P25
+    rows as 'P25 · TFD A2 …' instead of the `0.0 MHz` placeholder."""
+    if row.get("source") == "p25":
+        label = row.get("talkgroup_label") or f"TG {row.get('talkgroup_id')}"
+        return f"P25 · {label}"
+    freq = row.get("frequency_mhz")
+    return f"{freq:.4f} MHz" if freq else "—"
 
 
 def folium_color_for_type(t: Optional[str]) -> str:

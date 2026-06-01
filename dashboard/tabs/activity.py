@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from dashboard.api_client import APIClient
+from dashboard.style import SOURCE_LABELS, channel_label
 
 
 def _render_sdr_banner(client: APIClient) -> None:
@@ -53,9 +54,18 @@ def render(client: APIClient) -> None:
     df["hour"] = df["timestamp"].dt.floor("h")
     df["transmission_type"] = df["transmission_type"].fillna("unknown")
     df["frequency_mhz"] = df["frequency_mhz"].astype(float).round(4)
+    df["source"] = df["source"].fillna("analog") if "source" in df else "analog"
+    # Human channel per row: talkgroup name for P25, frequency for analog.
+    df["channel"] = df.apply(lambda r: channel_label(r.to_dict()), axis=1)
 
-    st.metric("Events captured", len(df))
-    st.metric("Distinct frequencies", df["frequency_mhz"].nunique())
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Events captured", len(df))
+    m2.metric("Distinct channels", df["channel"].nunique())
+    by_source = df["source"].value_counts().to_dict()
+    m3.metric(
+        "By source",
+        " · ".join(f"{SOURCE_LABELS.get(s, s)} {n}" for s, n in by_source.items()) or "—",
+    )
 
     # Stacked bar: count per hour by type.
     counts = df.groupby(["hour", "transmission_type"]).size().reset_index(name="count")
@@ -72,9 +82,10 @@ def render(client: APIClient) -> None:
     )
     st.altair_chart(bar, use_container_width=True)
 
-    # By frequency: a simple table for quick visual.
-    freq_counts = (
-        df.groupby("frequency_mhz").size().reset_index(name="events")
+    # By channel: a simple table for quick visual. Uses the talkgroup name for
+    # P25 rows instead of the 0.0 MHz placeholder, and carries the source.
+    chan_counts = (
+        df.groupby(["source", "channel"]).size().reset_index(name="events")
         .sort_values("events", ascending=False)
     )
-    st.dataframe(freq_counts, use_container_width=True, hide_index=True)
+    st.dataframe(chan_counts, use_container_width=True, hide_index=True)

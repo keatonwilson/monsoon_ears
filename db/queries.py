@@ -273,17 +273,23 @@ THREAD_GAP_SEC = 90  # max inter-event gap on a freq to be considered the same t
 def _assign_thread_for_event(session, event: TranscriptionEventRow) -> EventThreadRow:
     """Find or create the thread this event belongs to.
 
-    Lookup: any thread on the same frequency whose `end_timestamp` is within
-    THREAD_GAP_SEC of `event.timestamp`. The newest match wins.
+    Lookup: a same-channel thread whose `end_timestamp` is within THREAD_GAP_SEC
+    of `event.timestamp`. "Same channel" means the same talkgroup for P25 (every
+    P25 event shares frequency_mhz=0.0, so frequency alone would merge all
+    talkgroups into one thread) and the same frequency for analog. The newest
+    match wins.
     """
     cutoff = event.timestamp - timedelta(seconds=THREAD_GAP_SEC)
-    stmt = (
-        select(EventThreadRow)
-        .where(EventThreadRow.frequency_mhz == event.frequency_mhz)
-        .where(EventThreadRow.end_timestamp >= cutoff)
-        .order_by(EventThreadRow.end_timestamp.desc())
-        .limit(1)
-    )
+    stmt = select(EventThreadRow).where(EventThreadRow.end_timestamp >= cutoff)
+    if event.source == "p25":
+        stmt = stmt.where(EventThreadRow.source == "p25").where(
+            EventThreadRow.talkgroup_id == event.talkgroup_id
+        )
+    else:
+        stmt = stmt.where(EventThreadRow.source == event.source).where(
+            EventThreadRow.frequency_mhz == event.frequency_mhz
+        )
+    stmt = stmt.order_by(EventThreadRow.end_timestamp.desc()).limit(1)
     existing = session.exec(stmt).first()
     if existing is not None:
         ids = list(existing.event_ids or [])
@@ -298,6 +304,8 @@ def _assign_thread_for_event(session, event: TranscriptionEventRow) -> EventThre
 
     fresh = EventThreadRow(
         frequency_mhz=event.frequency_mhz,
+        source=event.source,
+        talkgroup_id=event.talkgroup_id,
         start_timestamp=event.timestamp,
         end_timestamp=event.timestamp,
         event_count=1,

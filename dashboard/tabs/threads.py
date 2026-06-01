@@ -5,10 +5,19 @@ from __future__ import annotations
 import streamlit as st
 
 from dashboard.api_client import APIClient, APIClientError
-from dashboard.style import az_date_label, fmt_az, fmt_az_full, severity_chip, type_chip
+from dashboard.style import (
+    az_date_label,
+    channel_label,
+    fmt_az,
+    fmt_az_full,
+    severity_chip,
+    source_chip,
+    type_chip,
+)
 
 
 def _thread_header(t: dict) -> str:
+    src_part = source_chip(t.get("source"))
     type_part = type_chip(t.get("transmission_type"))
     sev_part = severity_chip(t.get("severity"))
     incident = t.get("incident_type") or "—"
@@ -16,8 +25,8 @@ def _thread_header(t: dict) -> str:
     end = fmt_az(t.get("end_timestamp"))
     date_part = fmt_az_full(t.get("start_timestamp"))
     return (
-        f"{type_part}{sev_part} "
-        f"<b>{incident}</b> · {t['frequency_mhz']:.4f} MHz · "
+        f"{src_part}{type_part}{sev_part} "
+        f"<b>{incident}</b> · {channel_label(t)} · "
         f"{t['event_count']} event(s) · {start}–{end}"
         f"<br><span style='color:#888;font-size:0.85em;'>{date_part}</span>"
     )
@@ -66,6 +75,7 @@ def _render_thread(client: APIClient, t: dict) -> None:
             for ev in detail.get("events", []):
                 st.write(
                     f"`{fmt_az(ev['timestamp'])}` "
+                    f"[{channel_label(ev)}] "
                     f"({ev['duration_sec']:.1f}s) — {ev['raw_text']}"
                 )
 
