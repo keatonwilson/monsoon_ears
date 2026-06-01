@@ -23,10 +23,33 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Whisper's own defaults from whisper/transcribe.py.
+# Whisper's own defaults from whisper/transcribe.py. All four are overridable
+# via env (see `_env_float`) so the hallucination gates can be tuned on the Pi
+# without a code change.
 NO_SPEECH_THRESHOLD = 0.6
 LOGPROB_THRESHOLD = -1.0
+# Standalone low-confidence drop: garble that the model thinks is speech (low
+# no_speech_prob) still tends to score a poor avg_logprob. Drop anything below
+# this regardless of no_speech_prob. Stricter than LOGPROB_THRESHOLD so it only
+# fires on clearly low-confidence output — real dispatch traffic scores higher.
+LOGPROB_DROP_THRESHOLD = -1.2
 COMPRESSION_RATIO_THRESHOLD = 2.4
+
+# Seed Whisper's decoder with the vocabulary it keeps mangling on Tucson
+# scanner audio — agency/unit jargon, dispatch shorthand, the named washes, and
+# a few major streets. Whisper biases its token prior toward these without
+# emitting them, so "Tanque Verde" and "code 3" decode instead of becoming
+# "tankee verde" / "code three". The prompt itself is dropped from the output.
+TUCSON_PROMPT = (
+    "Tucson, Arizona public-safety scanner traffic. "
+    "Tucson Fire, Rural Metro, Northwest Fire, AMR, Pima County. "
+    "Engine, Ladder, Truck, Battalion, Med, Rescue. "
+    "code 2, code 3, TC, MVA, structure fire, cardiac arrest, water rescue. "
+    "Washes: Rillito, Pantano, Santa Cruz, Tanque Verde, Sabino, "
+    "Cañada del Oro, Brawley, Julian. "
+    "Streets: Speedway, Grant, Broadway, Ina, Oracle, Kolb, Tanque Verde, "
+    "Houghton, Valencia, Ajo, Interstate 10."
+)
 
 _model = None
 
@@ -52,15 +75,37 @@ class TranscriptionResult:
     n_segments: int
 
 
+def _env_float(name: str, default: float) -> float:
+    """Read a float threshold from env, falling back to `default` on unset or
+    unparseable values (a bad override must not silently disable a gate)."""
+    raw = os.getenv(name)
+    if raw is None:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        logger.warning("invalid %s=%r, using default %s", name, raw, default)
+        return default
+
+
 def _is_hallucination(r: TranscriptionResult) -> Optional[str]:
     """Return a reason string if the result looks hallucinated, else None."""
+    no_speech_t = _env_float("NO_SPEECH_THRESHOLD", NO_SPEECH_THRESHOLD)
+    logprob_t = _env_float("LOGPROB_THRESHOLD", LOGPROB_THRESHOLD)
+    logprob_drop_t = _env_float("LOGPROB_DROP_THRESHOLD", LOGPROB_DROP_THRESHOLD)
+    compression_t = _env_float("COMPRESSION_RATIO_THRESHOLD", COMPRESSION_RATIO_THRESHOLD)
+
     if not r.text:
         return "empty"
     # Whisper's own silence check: high no_speech_prob AND low confidence.
-    if r.no_speech_prob > NO_SPEECH_THRESHOLD and r.avg_logprob < LOGPROB_THRESHOLD:
+    if r.no_speech_prob > no_speech_t and r.avg_logprob < logprob_t:
         return f"no_speech_prob={r.no_speech_prob:.2f} logprob={r.avg_logprob:.2f}"
+    # Standalone low-confidence drop: catches garble the model reads as speech
+    # (low no_speech_prob) but still scores poorly.
+    if r.avg_logprob < logprob_drop_t:
+        return f"low_confidence logprob={r.avg_logprob:.2f}"
     # Repetitive babble check.
-    if r.compression_ratio > COMPRESSION_RATIO_THRESHOLD:
+    if r.compression_ratio > compression_t:
         return f"compression_ratio={r.compression_ratio:.2f}"
     # Very short outputs on noise are usually hallucinations (single CJK char,
     # lone "You", etc.). Two-character minimum is generous; real dispatch
@@ -78,7 +123,12 @@ def transcribe(audio: np.ndarray, sr: int = 16000) -> Optional[str]:
         raise ValueError(f"Whisper expects 16 kHz audio, got {sr}")
 
     model = get_model()
-    result = model.transcribe(audio.astype(np.float32), language="en", fp16=False)
+    result = model.transcribe(
+        audio.astype(np.float32),
+        language="en",
+        fp16=False,
+        initial_prompt=TUCSON_PROMPT,
+    )
     segments = result.get("segments") or []
     text = (result.get("text") or "").strip()
 
