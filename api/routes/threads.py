@@ -7,6 +7,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 
 from agents.summarize import summarize_thread
+from config.frequencies import talkgroup_label
 from db.queries import (
     events_for_thread,
     recent_threads,
@@ -20,6 +21,9 @@ def _serialize_thread(row, include_events: bool = False) -> dict[str, Any]:
     out: dict[str, Any] = {
         "id": row.id,
         "frequency_mhz": row.frequency_mhz,
+        "source": row.source,
+        "talkgroup_id": row.talkgroup_id,
+        "talkgroup_label": talkgroup_label(row.talkgroup_id),
         "start_timestamp": row.start_timestamp.isoformat() if row.start_timestamp else None,
         "end_timestamp": row.end_timestamp.isoformat() if row.end_timestamp else None,
         "event_count": row.event_count,
@@ -40,6 +44,9 @@ def _serialize_thread(row, include_events: bool = False) -> dict[str, Any]:
                 "timestamp": e.timestamp.isoformat() if e.timestamp else None,
                 "raw_text": e.raw_text,
                 "duration_sec": e.duration_sec,
+                "source": e.source,
+                "talkgroup_id": e.talkgroup_id,
+                "talkgroup_label": talkgroup_label(e.talkgroup_id),
                 "transmission_type": e.transmission_type,
                 "severity": e.severity,
             }

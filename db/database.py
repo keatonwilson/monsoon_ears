@@ -81,6 +81,12 @@ class EventThreadRow(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     frequency_mhz: float = Field(index=True)
+    # `source`/`talkgroup_id` mirror the constituent events so the dashboard can
+    # label a thread by its leg. P25 threads are clustered by talkgroup (every
+    # P25 event shares frequency_mhz=0.0, so frequency alone would merge every
+    # talkgroup into one thread); analog threads cluster by frequency.
+    source: str = Field(default="analog", index=True)
+    talkgroup_id: Optional[int] = Field(default=None, index=True)
     start_timestamp: datetime = Field(index=True)
     end_timestamp: datetime = Field(index=True)
     event_count: int = 0
@@ -142,7 +148,36 @@ def get_engine():
         cursor.close()
 
     SQLModel.metadata.create_all(_engine)
+    _migrate_columns(_engine)
     return _engine
+
+
+# Columns added to existing tables after their first release. SQLModel's
+# `create_all` only creates *missing tables*, never new columns on an existing
+# one, so we add them by hand. Idempotent: a column is only added if PRAGMA
+# table_info reports it missing. (lat S/N etc. are nullable/defaulted so the
+# ALTER is safe on a live DB.)
+_COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
+    "event_threads": [
+        ("source", "VARCHAR DEFAULT 'analog'"),
+        ("talkgroup_id", "INTEGER"),
+    ],
+}
+
+
+def _migrate_columns(engine) -> None:
+    from sqlalchemy import text
+
+    with engine.connect() as conn:
+        for table, columns in _COLUMN_MIGRATIONS.items():
+            existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            for name, ddl in columns:
+                if name not in existing:
+                    conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+                    conn.execute(text(
+                        f"CREATE INDEX IF NOT EXISTS ix_{table}_{name} ON {table} ({name})"
+                    ))
+        conn.commit()
 
 
 def get_session() -> Session:

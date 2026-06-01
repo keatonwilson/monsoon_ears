@@ -82,6 +82,69 @@ def test_insert_transcription_assigns_thread_inline(temp_db):
     assert threads[0].event_count == 2
 
 
+def _insert_p25(ts: datetime, talkgroup_id: int, text: str = "x") -> int:
+    from db.database import TranscriptionEventRow, get_session
+    with get_session() as s:
+        row = TranscriptionEventRow(
+            timestamp=ts, frequency_mhz=0.0, raw_text=text, duration_sec=2.0,
+            source="p25", talkgroup_id=talkgroup_id,
+        )
+        s.add(row)
+        s.commit()
+        s.refresh(row)
+        return row.id
+
+
+def test_p25_same_talkgroup_one_thread(temp_db):
+    from db.queries import recent_threads, stitch_events_into_threads
+
+    base = datetime.now(timezone.utc) - timedelta(minutes=5)
+    _insert_p25(base, talkgroup_id=15001)
+    _insert_p25(base + timedelta(seconds=20), talkgroup_id=15001)
+    stitch_events_into_threads()
+
+    threads = recent_threads()
+    assert len(threads) == 1
+    assert threads[0].event_count == 2
+    assert threads[0].source == "p25"
+    assert threads[0].talkgroup_id == 15001
+
+
+def test_p25_different_talkgroups_split_threads(temp_db):
+    """Same 0.0 MHz, same time window, different talkgroups → separate threads."""
+    from db.queries import recent_threads, stitch_events_into_threads
+
+    base = datetime.now(timezone.utc) - timedelta(minutes=5)
+    _insert_p25(base, talkgroup_id=15001)
+    _insert_p25(base + timedelta(seconds=10), talkgroup_id=13003)
+    stitch_events_into_threads()
+
+    threads = recent_threads()
+    assert len(threads) == 2
+    assert {t.talkgroup_id for t in threads} == {15001, 13003}
+
+
+def test_migration_adds_missing_columns(tmp_path):
+    """A legacy event_threads table (no source/talkgroup_id) gets the columns;
+    re-running the migration is a no-op."""
+    import db.database as dbm
+    from sqlalchemy import create_engine, text
+
+    eng = create_engine(f"sqlite:///{tmp_path / 'legacy.db'}")
+    with eng.connect() as c:
+        c.execute(text(
+            "CREATE TABLE event_threads (id INTEGER PRIMARY KEY, "
+            "frequency_mhz FLOAT, start_timestamp DATETIME, "
+            "end_timestamp DATETIME, event_count INTEGER)"
+        ))
+        c.commit()
+    dbm._migrate_columns(eng)
+    dbm._migrate_columns(eng)  # idempotent
+    with eng.connect() as c:
+        cols = {r[1] for r in c.execute(text("PRAGMA table_info(event_threads)"))}
+    assert "source" in cols and "talkgroup_id" in cols
+
+
 def test_close_idle_threads_marks_old_ones(temp_db):
     from db.queries import (
         close_idle_threads,
