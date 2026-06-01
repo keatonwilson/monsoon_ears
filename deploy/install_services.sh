@@ -23,7 +23,9 @@ fi
 # supervisor launches those runners itself, one at a time (they'd otherwise
 # fight for the SDR). The RF legs it will run are gated by SDR_ENABLE_* in .env
 # (P25 stays off until op25's audio backend is wired — deploy/op25_setup.md §4).
-SERVICES=(monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges)
+# monsoon-api + monsoon-dashboard serve the UI; previously run in a tmux session
+# that did not survive a reboot. They're always-on like the rest.
+SERVICES=(monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api monsoon-dashboard)
 
 for svc in "${SERVICES[@]}"; do
   unit="$UNIT_DIR/$svc.service"

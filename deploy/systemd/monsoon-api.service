@@ -1,0 +1,20 @@
+[Unit]
+Description=Monsoon Ears — FastAPI backend (dashboard data API on :8000)
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=120
+StartLimitBurst=10
+
+[Service]
+Type=simple
+User=keaton
+WorkingDirectory=/home/keaton/Documents/projects/monsoon_ears
+EnvironmentFile=/home/keaton/Documents/projects/monsoon_ears/.env
+# Wraps scripts/run_api.sh, which honors API_HOST/API_PORT from .env and binds
+# 0.0.0.0 so the dashboard (and the LAN) can reach it.
+ExecStart=/home/keaton/Documents/projects/monsoon_ears/scripts/run_api.sh
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

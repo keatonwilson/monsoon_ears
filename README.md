@@ -143,14 +143,14 @@ The always-on backend processes (SDR supervisor, agent worker, APRS-IS feed, gau
 sudo deploy/install_services.sh
 ```
 
-The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-sdr`, `monsoon-worker`, `monsoon-aprs`, and `monsoon-gauges`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
+The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-sdr`, `monsoon-worker`, `monsoon-aprs`, `monsoon-gauges`, `monsoon-api`, and `monsoon-dashboard`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
 
 ```bash
-systemctl status monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges
+systemctl status monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api monsoon-dashboard
 journalctl -u monsoon-sdr -f
 ```
 
-`monsoon-sdr` owns the dongle and runs the analog/P25 legs itself — so `monsoon-runner` and `monsoon-p25` are **not** enabled directly (they'd fight for the SDR); they remain for manual/debug runs of a single path. Which legs the supervisor will run is gated by `SDR_ENABLE_*` in `.env`. `monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interface processes are launched via `scripts/run_api.sh` / `scripts/run_dashboard.sh` (or your own units).
+`monsoon-sdr` owns the dongle and runs the analog/P25 legs itself — so `monsoon-runner` and `monsoon-p25` are **not** enabled directly (they'd fight for the SDR); they remain for manual/debug runs of a single path. Which legs the supervisor will run is gated by `SDR_ENABLE_*` in `.env`. `monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interfaces run as the `monsoon-api` / `monsoon-dashboard` services (wrapping `scripts/run_api.sh` / `scripts/run_dashboard.sh`), so they survive a reboot; `monsoon-dashboard` soft-waits on `monsoon-api`.
 
 ### Port table
 
