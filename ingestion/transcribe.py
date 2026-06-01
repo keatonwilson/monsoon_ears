@@ -35,20 +35,18 @@ LOGPROB_THRESHOLD = -1.0
 LOGPROB_DROP_THRESHOLD = -1.2
 COMPRESSION_RATIO_THRESHOLD = 2.4
 
-# Seed Whisper's decoder with the vocabulary it keeps mangling on Tucson
-# scanner audio — agency/unit jargon, dispatch shorthand, the named washes, and
-# a few major streets. Whisper biases its token prior toward these without
-# emitting them, so "Tanque Verde" and "code 3" decode instead of becoming
-# "tankee verde" / "code three". The prompt itself is dropped from the output.
+# Seed Whisper's decoder with Tucson scanner vocabulary so domain terms decode
+# ("Tanque Verde", "code 3") instead of garbling. Deliberately written as a
+# short, natural-prose sentence rather than comma-separated keyword lists:
+# Whisper treats the prompt as prior context and will happily *continue* a list
+# verbatim as if it were speech, so a list of streets/washes leaks back out as a
+# fake high-confidence transmission on near-silent audio. Prose with the terms
+# woven in biases the token prior just as well without the echo failure mode.
 TUCSON_PROMPT = (
-    "Tucson, Arizona public-safety scanner traffic. "
-    "Tucson Fire, Rural Metro, Northwest Fire, AMR, Pima County. "
-    "Engine, Ladder, Truck, Battalion, Med, Rescue. "
-    "code 2, code 3, TC, MVA, structure fire, cardiac arrest, water rescue. "
-    "Washes: Rillito, Pantano, Santa Cruz, Tanque Verde, Sabino, "
-    "Cañada del Oro, Brawley, Julian. "
-    "Streets: Speedway, Grant, Broadway, Ina, Oracle, Kolb, Tanque Verde, "
-    "Houghton, Valencia, Ajo, Interstate 10."
+    "Tucson, Arizona emergency scanner traffic. Tucson Fire, Rural Metro, "
+    "Northwest Fire, and AMR units respond code 2 or code 3 to structure fires, "
+    "traffic collisions, cardiac calls, and water rescues in washes like the "
+    "Rillito and the Tanque Verde."
 )
 
 _model = None
