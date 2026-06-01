@@ -168,6 +168,24 @@ def test_default_user_agent_is_not_placeholder(monkeypatch):
     assert "monsoon-ears" in ua
 
 
+def test_geocode_rejects_out_of_region_match(monkeypatch):
+    """A provider hit outside the Tucson/Pima bbox (e.g. a -41° latitude) is
+    discarded and the chain falls through to a provider that returns a local hit."""
+    import agents.extract as ex
+    wrong = FakeGeocoder(lat=-41.27, lon=174.78)   # Wellington, NZ
+    right = FakeGeocoder(lat=32.22, lon=-110.97)    # Tucson
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("wrong", wrong), ("right", right)])
+    lat, lon = geocode("River Rd")
+    assert (lat, lon) == (32.22, -110.97)
+
+
+def test_geocode_out_of_region_only_returns_none(monkeypatch):
+    import agents.extract as ex
+    wrong = FakeGeocoder(lat=-41.27, lon=174.78)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("wrong", wrong)])
+    assert geocode("Somewhere ambiguous") == (None, None)
+
+
 def test_extract_prompt_seeds_tucson_washes():
     response = ExtractResponse()
     client = FakeClient(response)

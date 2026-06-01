@@ -99,6 +99,17 @@ def _save_cache() -> None:
     path.write_text(json.dumps(_cache, indent=2))
 
 
+# Greater Tucson / Pima County bounding box (lat S/N, lon W/E). Generous enough
+# to cover Marana, Vail, Green Valley, Saguaro NP; tight enough to reject a
+# globally-ambiguous match (a bare street name resolving to another country).
+_REGION_LAT = (31.2, 32.85)
+_REGION_LON = (-111.65, -110.4)
+
+
+def _in_region(lat: float, lon: float) -> bool:
+    return _REGION_LAT[0] <= lat <= _REGION_LAT[1] and _REGION_LON[0] <= lon <= _REGION_LON[1]
+
+
 def _default_user_agent() -> str:
     """A *valid* Nominatim UA. The public service 403s placeholder/contact-less
     agents (e.g. the old `contact@example.com` default), which silently zeroed
@@ -179,8 +190,17 @@ def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[flo
                 time.sleep(1.0)
                 result = g.geocode(query, timeout=10)
                 if result is not None:
-                    lat, lon = float(result.latitude), float(result.longitude)
-                    break  # got a hit — stop the chain
+                    rlat, rlon = float(result.latitude), float(result.longitude)
+                    # Bounding-box sanity: a bare street / vague "the wash" can
+                    # match globally (we saw a -41° latitude). Anything outside
+                    # the Tucson/Pima region is wrong — treat it as a no-match
+                    # and let the next provider try.
+                    if _in_region(rlat, rlon):
+                        lat, lon = rlat, rlon
+                        break  # got a plausible hit — stop the chain
+                    logger.debug("geocode: %s returned out-of-region (%.3f,%.3f) for %r — trying next",
+                                 name, rlat, rlon, location)
+                    continue
                 # A no-match (None) is NOT authoritative: Nominatim often can't
                 # parse intersections / vague phrasing that ArcGIS or Census
                 # resolve fine. So fall through to the next provider rather than
