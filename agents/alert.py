@@ -220,9 +220,13 @@ def monsoon_digest(
 
     client = client if client is not None else _get_digest_client()
     model_name = model or os.getenv("DIGEST_MODEL", "claude-sonnet-4-6")
+    # 1024 truncated ~21% of structured outputs in the first soak
+    # (instructor IncompleteOutputException) now that the digest also folds in
+    # gauges + a fuller event list. 2048 gives the JSON room to close.
+    max_tokens = int(os.getenv("DIGEST_MAX_TOKENS", 2048))
     response: DigestResponse = client.messages.create(
         model=model_name,
-        max_tokens=1024,
+        max_tokens=max_tokens,
         messages=[{"role": "user", "content": prompt}],
         response_model=DigestResponse,
     )

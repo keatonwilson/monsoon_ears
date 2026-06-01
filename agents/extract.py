@@ -99,17 +99,74 @@ def _save_cache() -> None:
     path.write_text(json.dumps(_cache, indent=2))
 
 
-def _get_geocoder():
+# Greater Tucson / Pima County bounding box (lat S/N, lon W/E). Generous enough
+# to cover Marana, Vail, Green Valley, Saguaro NP; tight enough to reject a
+# globally-ambiguous match (a bare street name resolving to another country).
+_REGION_LAT = (31.2, 32.85)
+_REGION_LON = (-111.65, -110.4)
+
+
+def _in_region(lat: float, lon: float) -> bool:
+    return _REGION_LAT[0] <= lat <= _REGION_LAT[1] and _REGION_LON[0] <= lon <= _REGION_LON[1]
+
+
+def _default_user_agent() -> str:
+    """A *valid* Nominatim UA. The public service 403s placeholder/contact-less
+    agents (e.g. the old `contact@example.com` default), which silently zeroed
+    out all geocoding during the first soak. Require a real identifier."""
+    return os.getenv("NOMINATIM_USER_AGENT", "monsoon-ears/1.0 (+https://github.com/keatonwilson/monsoon_ears)")
+
+
+def _build_geocoders() -> list[tuple[str, object]]:
+    """Provider fallback chain. Nominatim first (best for named/wash locations),
+    then ArcGIS and US Census (both keyless, no UA gating) so a single provider
+    403'ing or rate-limiting doesn't take all geocoding down. Order/inclusion is
+    tunable via GEOCODER_CHAIN (comma-separated: nominatim,arcgis,census)."""
+    from geopy.geocoders import ArcGIS, Nominatim
+
+    chain = os.getenv("GEOCODER_CHAIN", "nominatim,arcgis,census")
+    out: list[tuple[str, object]] = []
+    for name in [c.strip().lower() for c in chain.split(",") if c.strip()]:
+        if name == "nominatim":
+            out.append(("nominatim", Nominatim(user_agent=_default_user_agent(), timeout=10)))
+        elif name == "arcgis":
+            out.append(("arcgis", ArcGIS(timeout=10)))
+        elif name == "census":
+            out.append(("census", _CensusGeocoder()))
+    return out
+
+
+class _CensusGeocoder:
+    """Tiny keyless US Census onelineaddress geocoder with a geopy-like result."""
+
+    _URL = "https://geocoding.geo.census.gov/geocoder/locations/onelineaddress"
+
+    def geocode(self, query: str, timeout: int = 15):
+        import requests
+
+        resp = requests.get(
+            self._URL,
+            params={"address": query, "benchmark": "Public_AR_Current", "format": "json"},
+            timeout=timeout,
+        )
+        resp.raise_for_status()
+        matches = resp.json().get("result", {}).get("addressMatches", [])
+        if not matches:
+            return None
+        coords = matches[0]["coordinates"]
+        return type("R", (), {"latitude": coords["y"], "longitude": coords["x"]})()
+
+
+def _get_geocoders() -> list[tuple[str, object]]:
     global _geocoder
     if _geocoder is None:
-        from geopy.geocoders import Nominatim
-        user_agent = os.getenv("NOMINATIM_USER_AGENT", "monsoon-ears/0.1")
-        _geocoder = Nominatim(user_agent=user_agent)
+        _geocoder = _build_geocoders()
     return _geocoder
 
 
 def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[float]]:
-    """Look up a location string. Cache-first, rate-limited (1 req/sec)."""
+    """Look up a location string. Cache-first, rate-limited, with provider
+    fallback so one provider's failure doesn't blank out the coordinate."""
     cache = _load_cache()
     key = f"tucson, az | {location.strip().lower()}"
     if key in cache:
@@ -120,17 +177,43 @@ def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[flo
         if key in cache:
             cached = cache[key]
             return (cached[0], cached[1])
-        try:
-            g = geocoder if geocoder is not None else _get_geocoder()
-            time.sleep(1.0)  # Nominatim's published 1 req/sec policy.
-            result = g.geocode(f"{location}, Tucson, AZ", timeout=10)
-            if result is None:
-                lat, lon = None, None
-            else:
-                lat, lon = float(result.latitude), float(result.longitude)
-        except Exception as exc:  # noqa: BLE001 — network errors must not crash worker
-            logger.warning("geocode failed for %r: %s", location, exc)
-            lat, lon = None, None
+
+        # An injected geocoder (tests) bypasses the provider chain entirely.
+        providers = [("injected", geocoder)] if geocoder is not None else _get_geocoders()
+
+        lat, lon = None, None
+        query = f"{location}, Tucson, AZ"
+        for name, g in providers:
+            try:
+                # Nominatim's published policy is 1 req/sec; the keyless fallbacks
+                # are politely throttled too. Only sleep before a real call.
+                time.sleep(1.0)
+                result = g.geocode(query, timeout=10)
+                if result is not None:
+                    rlat, rlon = float(result.latitude), float(result.longitude)
+                    # Bounding-box sanity: a bare street / vague "the wash" can
+                    # match globally (we saw a -41° latitude). Anything outside
+                    # the Tucson/Pima region is wrong — treat it as a no-match
+                    # and let the next provider try.
+                    if _in_region(rlat, rlon):
+                        lat, lon = rlat, rlon
+                        break  # got a plausible hit — stop the chain
+                    logger.debug("geocode: %s returned out-of-region (%.3f,%.3f) for %r — trying next",
+                                 name, rlat, rlon, location)
+                    continue
+                # A no-match (None) is NOT authoritative: Nominatim often can't
+                # parse intersections / vague phrasing that ArcGIS or Census
+                # resolve fine. So fall through to the next provider rather than
+                # giving up here.
+                logger.debug("geocode: %s found no match for %r — trying next", name, location)
+                continue
+            except Exception as exc:  # noqa: BLE001 — try the next provider
+                logger.warning("geocode via %s failed for %r: %s — trying next provider",
+                               name, location, exc)
+                continue
+        else:
+            logger.debug("geocode: no provider resolved %r", location)
+
         cache[key] = [lat, lon]
         try:
             _save_cache()

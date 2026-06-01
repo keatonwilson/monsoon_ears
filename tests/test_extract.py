@@ -105,6 +105,87 @@ def test_geocode_uses_cache_on_repeat():
     assert len(geocoder.queries) == 1  # cached on second call
 
 
+class _BoomGeocoder:
+    """Always raises — simulates a provider 403/outage."""
+
+    def __init__(self):
+        self.queries: list[str] = []
+
+    def geocode(self, query, timeout=10):
+        self.queries.append(query)
+        raise RuntimeError("403 Access denied")
+
+
+def test_geocode_falls_back_to_next_provider(monkeypatch):
+    """First provider 403s; the chain moves on and the second provider hits."""
+    import agents.extract as ex
+    boom = _BoomGeocoder()
+    good = FakeGeocoder(lat=32.25, lon=-110.92)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("boom", boom), ("good", good)])
+
+    lat, lon = geocode("River Rd at Campbell")
+    assert (lat, lon) == (32.25, -110.92)
+    assert boom.queries and good.queries  # both were tried, in order
+
+
+def test_geocode_all_providers_fail_returns_none(monkeypatch):
+    import agents.extract as ex
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("boom", _BoomGeocoder())])
+    assert geocode("Nowhere St") == (None, None)
+
+
+class _NoMatchGeocoder:
+    """Returns None (clean no-match), like Nominatim on an unparseable address."""
+
+    def __init__(self):
+        self.queries: list[str] = []
+
+    def geocode(self, query, timeout=10):
+        self.queries.append(query)
+        return None
+
+
+def test_geocode_continues_past_clean_no_match(monkeypatch):
+    """A None (no-match) from one provider must NOT stop the chain — the next
+    provider gets a shot (the bug that filled 0 rows in the first backfill)."""
+    import agents.extract as ex
+    nomatch = _NoMatchGeocoder()
+    good = FakeGeocoder(lat=32.28, lon=-110.94)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("nomatch", nomatch), ("good", good)])
+
+    lat, lon = geocode("River Rd and Campbell Ave")
+    assert (lat, lon) == (32.28, -110.94)
+    assert nomatch.queries and good.queries  # both consulted
+
+
+def test_default_user_agent_is_not_placeholder(monkeypatch):
+    """Regression: the public Nominatim 403s contact-less / example.com agents,
+    which silently zeroed geocoding in the first soak."""
+    import agents.extract as ex
+    monkeypatch.delenv("NOMINATIM_USER_AGENT", raising=False)
+    ua = ex._default_user_agent()
+    assert "example.com" not in ua
+    assert "monsoon-ears" in ua
+
+
+def test_geocode_rejects_out_of_region_match(monkeypatch):
+    """A provider hit outside the Tucson/Pima bbox (e.g. a -41° latitude) is
+    discarded and the chain falls through to a provider that returns a local hit."""
+    import agents.extract as ex
+    wrong = FakeGeocoder(lat=-41.27, lon=174.78)   # Wellington, NZ
+    right = FakeGeocoder(lat=32.22, lon=-110.97)    # Tucson
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("wrong", wrong), ("right", right)])
+    lat, lon = geocode("River Rd")
+    assert (lat, lon) == (32.22, -110.97)
+
+
+def test_geocode_out_of_region_only_returns_none(monkeypatch):
+    import agents.extract as ex
+    wrong = FakeGeocoder(lat=-41.27, lon=174.78)
+    monkeypatch.setattr(ex, "_get_geocoders", lambda: [("wrong", wrong)])
+    assert geocode("Somewhere ambiguous") == (None, None)
+
+
 def test_extract_prompt_seeds_tucson_washes():
     response = ExtractResponse()
     client = FakeClient(response)
