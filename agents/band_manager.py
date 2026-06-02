@@ -81,9 +81,10 @@ def _env_bool(name: str, default: bool) -> bool:
 def enabled_legs() -> list[str]:
     """Which RF legs the supervisor may run, from SDR_ENABLE_* env flags.
 
-    P25 defaults OFF — the op25 UDP audio backend isn't wired yet (see
-    deploy/op25_setup.md §4), so until then the supervisor runs analog only and
-    the scheduler degrades to a single-leg plan.
+    Both legs are live on the Pi (the op25 UDP audio backend is wired — see
+    deploy/op25_setup.md §4). P25 defaults OFF in the example env so a fresh
+    checkout runs analog-only until op25 is built; enable it with SDR_ENABLE_P25.
+    With a single leg enabled the scheduler degrades to a single-leg plan.
     """
     legs = []
     if _env_bool("SDR_ENABLE_ANALOG", True):
