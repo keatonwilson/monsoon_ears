@@ -162,6 +162,53 @@ def test_empty_plan_sleeps_without_launching():
     assert clock.t == pytest.approx(10)
 
 
+def test_watchdog_trips_after_consecutive_failures():
+    """Every leg dies immediately → after max_leg_failures, the supervisor
+    flags failure and stops (so main() can exit non-zero for systemd)."""
+    clock = _Clock()
+    launched = []
+
+    def launch(cmd):
+        p = FakeProc(rc=1)  # already dead on arrival
+        launched.append((cmd, p))
+        return p
+
+    # Long dwells so a healthy leg would run for ages — only early exits advance.
+    sup = _supervisor(
+        clock, launch,
+        _plan(("p25", 600), ("analog", 600)),
+        max_leg_failures=3,
+    )
+    sup.run(max_cycles=5)
+
+    assert sup.failed is True
+    assert len(launched) == 3  # stopped exactly at the threshold
+    assert clock.t < 600  # never waited out a dwell
+
+
+def test_watchdog_streak_resets_on_healthy_leg():
+    """A leg that survives its dwell clears the streak, so intermittent
+    early exits (e.g. P25 broken but analog fine) never trip the watchdog."""
+    clock = _Clock()
+    seq = []
+
+    def launch(cmd):
+        # p25 always dies instantly; analog stays alive for its dwell.
+        is_p25 = "runner_p25" in " ".join(cmd)
+        p = FakeProc(rc=1) if is_p25 else FakeProc()
+        seq.append(p)
+        return p
+
+    sup = _supervisor(
+        clock, launch,
+        _plan(("p25", 4), ("analog", 4)),
+        max_leg_failures=3,
+    )
+    sup.run(max_cycles=5)  # 5 cycles of (fail, healthy) → streak never exceeds 1
+
+    assert sup.failed is False
+
+
 def test_status_file_written(tmp_path):
     import json
 

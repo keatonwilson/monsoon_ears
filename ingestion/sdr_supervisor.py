@@ -87,6 +87,7 @@ class SdrSupervisor:
         cooldown_sec: float = 3.0,
         term_grace_sec: float = 10.0,
         empty_cycle_sec: float = 60.0,
+        max_leg_failures: int = 5,
     ):
         self.plan_fn = plan_fn
         self.launch_fn = launch_fn
@@ -97,9 +98,25 @@ class SdrSupervisor:
         self.cooldown_sec = cooldown_sec
         self.term_grace_sec = term_grace_sec
         self.empty_cycle_sec = empty_cycle_sec
+        # Watchdog: a healthy leg runs to its dwell deadline (we terminate it);
+        # a leg that exits on its own beforehand has crashed/failed to start. If
+        # we can't get ANY leg to survive its dwell `max_leg_failures` times in a
+        # row, the SDR (or its config) is wedged — exit non-zero so systemd's
+        # Restart=on-failure recovers us. A persistent failure then trips the
+        # unit's StartLimit and lands it in a visible `failed` state, instead of
+        # the silent "active but hung" zombie we hit when op25 fast-failed every
+        # cycle and eventually wedged the dongle.
+        self.max_leg_failures = max_leg_failures
 
         self._stop = False
         self._active: LegProcess | None = None
+        self._fail_streak = 0
+        self._failed = False
+
+    @property
+    def failed(self) -> bool:
+        """True if the watchdog tripped (caller should exit non-zero)."""
+        return self._failed
 
     # -- control --
     def request_stop(self) -> None:
@@ -142,19 +159,46 @@ class SdrSupervisor:
         logger.info("supervisor: leg %s for %.0fs", seg.leg, seg.seconds)
 
         deadline = self._time() + seg.seconds
+        exited_early = False
         while not self._stop and self._time() < deadline:
-            if proc.poll() is not None:
-                logger.warning("supervisor: leg %s exited early (rc=%s)", seg.leg, proc.poll())
+            rc = proc.poll()
+            if rc is not None:
+                logger.warning("supervisor: leg %s exited early (rc=%s)", seg.leg, rc)
+                exited_early = True
                 break
             remaining = deadline - self._time()
             self._sleep(min(self.poll_tick_sec, max(0.0, remaining)))
 
         self._stop_proc(proc)
         self._active = None
+        self._note_leg_outcome(seg, exited_early)
         # Cooldown so the SDR is fully released before the next leg opens it
         # (avoids "usb_claim_interface error / device busy" on a fast switch).
         if not self._stop and self.cooldown_sec > 0:
             self._interruptible_sleep(self.cooldown_sec)
+
+    def _note_leg_outcome(self, seg: DwellSegment, exited_early: bool) -> None:
+        """Track consecutive leg failures; trip the watchdog if we can't keep
+        any leg alive. Reaching the dwell deadline (the common case) is healthy
+        and clears the streak."""
+        if self._stop:
+            return  # a requested stop isn't a failure
+        if not exited_early:
+            if self._fail_streak:
+                logger.info("supervisor: leg %s healthy; clearing failure streak (was %d)",
+                            seg.leg, self._fail_streak)
+            self._fail_streak = 0
+            return
+        self._fail_streak += 1
+        logger.warning("supervisor: leg %s failed (%d/%d consecutive)",
+                       seg.leg, self._fail_streak, self.max_leg_failures)
+        if self._fail_streak >= self.max_leg_failures:
+            logger.error(
+                "supervisor: %d consecutive leg failures — exiting non-zero so the "
+                "service restarts and re-initializes a wedged SDR", self._fail_streak,
+            )
+            self._failed = True
+            self._stop = True
 
     def _stop_proc(self, proc: LegProcess) -> None:
         if proc.poll() is not None:
@@ -215,6 +259,7 @@ def main() -> int:
         poll_tick_sec=float(os.getenv("SDR_POLL_TICK_SEC", 2.0)),
         cooldown_sec=float(os.getenv("SDR_LEG_COOLDOWN_SEC", 3.0)),
         term_grace_sec=float(os.getenv("SDR_TERM_GRACE_SEC", 10.0)),
+        max_leg_failures=int(os.getenv("SDR_MAX_LEG_FAILURES", 5)),
     )
 
     signal.signal(signal.SIGINT, lambda *_: sup.request_stop())
@@ -225,6 +270,9 @@ def main() -> int:
         sup.run()
     finally:
         sup.request_stop()
+    if sup.failed:
+        log.error("SDR supervisor exiting non-zero after repeated leg failures")
+        return 1
     log.info("SDR supervisor stopped")
     return 0
 
