@@ -35,19 +35,15 @@ LOGPROB_THRESHOLD = -1.0
 LOGPROB_DROP_THRESHOLD = -1.2
 COMPRESSION_RATIO_THRESHOLD = 2.4
 
-# Seed Whisper's decoder with Tucson scanner vocabulary so domain terms decode
-# ("Tanque Verde", "code 3") instead of garbling. Deliberately written as a
-# short, natural-prose sentence rather than comma-separated keyword lists:
-# Whisper treats the prompt as prior context and will happily *continue* a list
-# verbatim as if it were speech, so a list of streets/washes leaks back out as a
-# fake high-confidence transmission on near-silent audio. Prose with the terms
-# woven in biases the token prior just as well without the echo failure mode.
-TUCSON_PROMPT = (
-    "Tucson, Arizona emergency scanner traffic. Tucson Fire, Rural Metro, "
-    "Northwest Fire, and AMR units respond code 2 or code 3 to structure fires, "
-    "traffic collisions, cardiac calls, and water rescues in washes like the "
-    "Rillito and the Tanque Verde."
-)
+# NOTE: we deliberately do NOT pass a Whisper `initial_prompt`. We tried seeding
+# one with Tucson scanner vocabulary (agencies, codes, washes) to bias decoding,
+# but Whisper treats `initial_prompt` as prior context and *continues it
+# verbatim* on near-silent audio — the seed text leaked back out as fake
+# high-confidence "transmissions" (e.g. "Rural Metro, Northwest Fire, and AMR
+# units respond code 3 to structure fires…" classified fire @ 0.95). This
+# recurred even with the prompt written as prose, so the seeding was removed.
+# The real lever for decode quality is a larger model (small -> medium), not a
+# prompt. See memory: whisper-initial-prompt-leak.
 
 _model = None
 
@@ -121,12 +117,7 @@ def transcribe(audio: np.ndarray, sr: int = 16000) -> Optional[str]:
         raise ValueError(f"Whisper expects 16 kHz audio, got {sr}")
 
     model = get_model()
-    result = model.transcribe(
-        audio.astype(np.float32),
-        language="en",
-        fp16=False,
-        initial_prompt=TUCSON_PROMPT,
-    )
+    result = model.transcribe(audio.astype(np.float32), language="en", fp16=False)
     segments = result.get("segments") or []
     text = (result.get("text") or "").strip()
 
