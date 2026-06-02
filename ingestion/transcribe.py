@@ -10,6 +10,17 @@ diagnostics that catch most of these:
 
 We use the same thresholds the OpenAI Whisper reference implementation uses
 internally for its "did the model just hallucinate?" check.
+
+Two interchangeable decode backends, selected by ``WHISPER_BACKEND``:
+
+  * ``openai`` (default) — the reference ``openai-whisper`` package (PyTorch).
+  * ``faster`` — ``faster-whisper`` (CTranslate2). 3-4x faster on the Pi 5 CPU
+    at int8, which is what makes ``medium`` feasible inline (``small`` on the
+    reference backend is the prior sweet spot). Same model names, same
+    per-segment diagnostics, so the gates below are backend-agnostic.
+
+Both expose identical per-segment diagnostics, so everything below the decode
+step (``TranscriptionResult`` + ``_is_hallucination``) is shared.
 """
 
 from __future__ import annotations
@@ -48,16 +59,78 @@ COMPRESSION_RATIO_THRESHOLD = 2.4
 _model = None
 
 
+def _backend() -> str:
+    """Which decode backend to use: 'openai' (default) or 'faster'."""
+    return os.getenv("WHISPER_BACKEND", "openai").strip().lower()
+
+
 def get_model():
-    """Lazy-load the Whisper model (slow first call, ~244 MB for small)."""
+    """Lazy-load the Whisper model (slow first call, ~244 MB for small).
+
+    The model object differs per backend (a ``whisper.Whisper`` vs a
+    ``faster_whisper.WhisperModel``); ``_decode`` knows how to drive each.
+    """
     global _model
     if _model is None:
-        import whisper
-
         model_name = os.getenv("WHISPER_MODEL", "small")
-        logger.info("loading whisper model: %s", model_name)
-        _model = whisper.load_model(model_name)
+        if _backend() == "faster":
+            from faster_whisper import WhisperModel
+
+            device = os.getenv("WHISPER_DEVICE", "cpu")
+            compute_type = os.getenv("WHISPER_COMPUTE_TYPE", "int8")
+            logger.info("loading faster-whisper model: %s (device=%s, compute=%s)",
+                        model_name, device, compute_type)
+            _model = WhisperModel(model_name, device=device, compute_type=compute_type)
+        else:
+            import whisper
+
+            logger.info("loading openai-whisper model: %s", model_name)
+            _model = whisper.load_model(model_name)
     return _model
+
+
+@dataclass
+class _Segment:
+    """Normalized per-segment diagnostics, identical across both backends."""
+    text: str
+    no_speech_prob: float
+    avg_logprob: float
+    compression_ratio: float
+
+
+def _decode(model, audio: np.ndarray) -> tuple[str, list[_Segment]]:
+    """Run the configured backend and normalize its output to (text, segments).
+
+    Keeps the two libraries' differing return shapes (openai's dict vs
+    faster-whisper's (generator, info) tuple) out of the rest of the module.
+    """
+    if _backend() == "faster":
+        beam = int(os.getenv("WHISPER_BEAM_SIZE", "5"))
+        seg_iter, _info = model.transcribe(audio, language="en", beam_size=beam)
+        segs = [
+            _Segment(
+                text=s.text or "",
+                no_speech_prob=s.no_speech_prob,
+                avg_logprob=s.avg_logprob,
+                compression_ratio=s.compression_ratio,
+            )
+            for s in seg_iter  # generator — consuming it runs the decode
+        ]
+        return "".join(s.text for s in segs).strip(), segs
+
+    # openai-whisper
+    result = model.transcribe(audio, language="en", fp16=False)
+    raw = result.get("segments") or []
+    segs = [
+        _Segment(
+            text=s.get("text", ""),
+            no_speech_prob=s.get("no_speech_prob", 0.0),
+            avg_logprob=s.get("avg_logprob", 0.0),
+            compression_ratio=s.get("compression_ratio", 0.0),
+        )
+        for s in raw
+    ]
+    return (result.get("text") or "").strip(), segs
 
 
 @dataclass
@@ -117,9 +190,7 @@ def transcribe(audio: np.ndarray, sr: int = 16000) -> Optional[str]:
         raise ValueError(f"Whisper expects 16 kHz audio, got {sr}")
 
     model = get_model()
-    result = model.transcribe(audio.astype(np.float32), language="en", fp16=False)
-    segments = result.get("segments") or []
-    text = (result.get("text") or "").strip()
+    text, segments = _decode(model, audio.astype(np.float32))
 
     if not segments:
         # No segments == Whisper found nothing worth transcribing.
@@ -127,9 +198,9 @@ def transcribe(audio: np.ndarray, sr: int = 16000) -> Optional[str]:
 
     parsed = TranscriptionResult(
         text=text,
-        no_speech_prob=max(s.get("no_speech_prob", 0.0) for s in segments),
-        avg_logprob=float(np.mean([s.get("avg_logprob", 0.0) for s in segments])),
-        compression_ratio=max(s.get("compression_ratio", 0.0) for s in segments),
+        no_speech_prob=max(s.no_speech_prob for s in segments),
+        avg_logprob=float(np.mean([s.avg_logprob for s in segments])),
+        compression_ratio=max(s.compression_ratio for s in segments),
         n_segments=len(segments),
     )
 
