@@ -209,7 +209,9 @@ All runtime tuning lives in `.env` — see [`.env.example`](./.env.example). The
 | `CHUNK_DURATION_SEC` | `15` | Window pulled from the SDR per capture cycle. Longer → fewer mid-utterance cuts, more wasted compute on silence. VAD inside the window handles the trade-off. |
 | `VAD_AGGRESSIVENESS` | `2` | webrtcvad 0–3 scale. Higher = more likely to flag noisy speech as speech. `2` is the right setting for noisy radio. |
 | `VAD_MIN_SEGMENT_MS` | `800` | Drop speech segments below this length — filters key-up blips that survive the squelch. |
-| `WHISPER_MODEL` | `small` | `tiny` / `base` / `small` / `medium`. `small` is the sweet spot on Pi 5 CPU. |
+| `WHISPER_BACKEND` | `openai` | Decode engine: `openai` (reference, PyTorch) or `faster` (faster-whisper / CTranslate2 — 3–4× quicker on Pi 5 CPU at int8, makes `medium` feasible). Benchmark with `scripts/benchmark_whisper.py`. |
+| `WHISPER_MODEL` | `small` | `tiny` / `base` / `small` / `medium`. `small` is the sweet spot on Pi 5 CPU with the `openai` backend; `faster` opens the door to `medium`. |
+| `WHISPER_COMPUTE_TYPE` | `int8` | faster-whisper only: `int8` / `int8_float16` / `float16` / `float32`. `int8` is the fast CPU path. |
 | `SCAN_PROBE_SEC` | `1.0` | How long the scanner listens on each freq before deciding "signal present." Probe audio is prepended to the first HOLD chunk so short bursts aren't lost. |
 | `SCAN_HANGOVER_CHUNKS` | `1` | Consecutive squelched chunks before HOLD releases and the scan resumes. Raise to 2+ on channels with intra-transmission pauses. |
 | `SCAN_MAX_HOLD_SEC` | `120` | Hard cap on time held on one frequency — prevents a stuck carrier from deadlocking the scan. |
