@@ -25,3 +25,6 @@ models_cache/
 .idea/
 .vscode/
 
+
+# R session history
+.Rhistory
