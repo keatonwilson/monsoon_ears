@@ -110,6 +110,7 @@ class SdrSupervisor:
 
         self._stop = False
         self._active: LegProcess | None = None
+        self._active_leg: str | None = None
         self._fail_streak = 0
         self._failed = False
 
@@ -125,38 +126,53 @@ class SdrSupervisor:
             return
         self._stop = True
         logger.info("supervisor: stop requested")
-        if self._active is not None:
-            self._stop_proc(self._active)
-            self._active = None
+        self._release_active()
 
     # -- main loop --
     def run(self, max_cycles: int | None = None) -> None:
         """Run dwell cycles until stopped (or max_cycles, for tests)."""
         cycles = 0
-        while not self._stop and (max_cycles is None or cycles < max_cycles):
-            plan = self.plan_fn()
-            logger.info(
-                "supervisor: cycle plan source=%s rationale=%s segments=%s",
-                plan.source, plan.rationale,
-                [(s.leg, round(s.seconds)) for s in plan.segments],
-            )
-            if not plan.segments:
-                self._write_status(plan, current=None, ends_in=self.empty_cycle_sec)
-                self._interruptible_sleep(self.empty_cycle_sec)
+        try:
+            while not self._stop and (max_cycles is None or cycles < max_cycles):
+                plan = self.plan_fn()
+                logger.info(
+                    "supervisor: cycle plan source=%s rationale=%s segments=%s",
+                    plan.source, plan.rationale,
+                    [(s.leg, round(s.seconds)) for s in plan.segments],
+                )
+                if not plan.segments:
+                    # No leg to run: free the dongle so a stale plan can't pin it.
+                    self._release_active()
+                    self._write_status(plan, current=None, ends_in=self.empty_cycle_sec)
+                    self._interruptible_sleep(self.empty_cycle_sec)
+                    cycles += 1
+                    continue
+                for seg in plan.segments:
+                    if self._stop:
+                        break
+                    self._run_segment(seg, plan)
                 cycles += 1
-                continue
-            for seg in plan.segments:
-                if self._stop:
-                    break
-                self._run_leg(seg, plan)
-            cycles += 1
+        finally:
+            # Whatever we leave running must release the SDR on the way out.
+            self._release_active()
 
-    def _run_leg(self, seg: DwellSegment, plan: DwellPlan) -> None:
-        cmd = leg_command(seg.leg)
-        proc = self.launch_fn(cmd)
-        self._active = proc
+    def _run_segment(self, seg: DwellSegment, plan: DwellPlan) -> None:
+        # Reuse the live leg if it's already the one this segment wants and still
+        # running — switching legs costs a full decoder restart (op25 re-locks the
+        # P25 control channel, ~20s of missed calls). Holding the same leg across a
+        # segment/cycle boundary avoids that entirely (e.g. a P25-only posture
+        # never re-locks).
+        reused = (
+            self._active is not None
+            and self._active_leg == seg.leg
+            and self._active.poll() is None
+        )
+        if not reused:
+            self._acquire_leg(seg.leg)
+        proc = self._active
         self._write_status(plan, current=seg, ends_in=seg.seconds)
-        logger.info("supervisor: leg %s for %.0fs", seg.leg, seg.seconds)
+        logger.info("supervisor: leg %s for %.0fs (%s)", seg.leg, seg.seconds,
+                    "continued" if reused else "fresh")
 
         deadline = self._time() + seg.seconds
         exited_early = False
@@ -169,13 +185,35 @@ class SdrSupervisor:
             remaining = deadline - self._time()
             self._sleep(min(self.poll_tick_sec, max(0.0, remaining)))
 
-        self._stop_proc(proc)
-        self._active = None
+        if exited_early:
+            # The decoder died; drop the handle so the next segment relaunches it
+            # (with a cooldown) instead of trying to reuse a dead process.
+            self._active = None
+            self._active_leg = None
         self._note_leg_outcome(seg, exited_early)
-        # Cooldown so the SDR is fully released before the next leg opens it
-        # (avoids "usb_claim_interface error / device busy" on a fast switch).
-        if not self._stop and self.cooldown_sec > 0:
-            self._interruptible_sleep(self.cooldown_sec)
+
+    def _acquire_leg(self, leg: str) -> None:
+        """Tear down any currently-held leg and launch ``leg`` fresh. The cooldown
+        between teardown and launch lets the SDR fully release (avoids
+        "usb_claim_interface error / device busy" on a fast switch); it's skipped
+        on the first launch when nothing is held."""
+        if self._active is not None:
+            self._stop_proc(self._active)
+            self._active = None
+            self._active_leg = None
+            if not self._stop and self.cooldown_sec > 0:
+                self._interruptible_sleep(self.cooldown_sec)
+        cmd = leg_command(leg)
+        self._active = self.launch_fn(cmd)
+        self._active_leg = leg
+
+    def _release_active(self) -> None:
+        """Stop the live leg (if any) without a trailing cooldown — used on
+        shutdown and empty cycles, where nothing follows."""
+        if self._active is not None:
+            self._stop_proc(self._active)
+            self._active = None
+            self._active_leg = None
 
     def _note_leg_outcome(self, seg: DwellSegment, exited_early: bool) -> None:
         """Track consecutive leg failures; trip the watchdog if we can't keep

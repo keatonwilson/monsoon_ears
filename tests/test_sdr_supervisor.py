@@ -108,8 +108,33 @@ def test_runs_legs_in_plan_order_and_switches():
     assert "runner_analog" in " ".join(launched[1][0])
     # Each leg was torn down before moving on (mutual exclusion).
     assert all(proc.terminated for _, proc in launched)
-    # Elapsed ≈ 6 + cooldown + 4 + cooldown (fake clock advanced by sleeps).
-    assert clock.t == pytest.approx(6 + 1 + 4 + 1)
+    # Elapsed ≈ 6 + cooldown (on the p25→analog switch) + 4. No trailing cooldown
+    # after the final leg — it's just released on the way out.
+    assert clock.t == pytest.approx(6 + 1 + 4)
+
+
+def test_same_leg_across_cycles_is_kept_alive():
+    """A single-leg (e.g. P25-only) posture must NOT tear down and relaunch the
+    decoder each cycle — that would pay op25's control-channel re-lock every time.
+    The live leg is reused across cycle boundaries, so it launches exactly once."""
+    clock = _Clock()
+    launched = []
+
+    def launch(cmd):
+        p = FakeProc()
+        launched.append((cmd, p))
+        return p
+
+    sup = _supervisor(clock, launch, _plan(("p25", 5)))
+    sup.run(max_cycles=3)
+
+    # Three cycles, but op25 launched once and was never torn down mid-run.
+    assert len(launched) == 1
+    assert "runner_p25" in " ".join(launched[0][0])
+    # 3 dwells of 5s, no inter-cycle cooldown (same leg held throughout).
+    assert clock.t == pytest.approx(15)
+    # Released exactly once, on the way out.
+    assert launched[0][1].terminated is True
 
 
 def test_leg_that_exits_early_advances_without_terminate():
