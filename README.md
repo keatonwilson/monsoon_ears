@@ -11,17 +11,18 @@ It is an exercise in three things at once: low-level DSP on commodity hardware, 
 | Phase | Scope | State |
 |---|---|---|
 | 01 | Pi setup, SDR validation, frequency research | ✅ Done |
-| 01.5 | op25 install for P25 Phase II trunked digital | 🟢 op25 built on Pi; **PCWIN locked & decoding** (NAC 0x3b1, SYSID 0x3bb, live talkgroup activity). Audio→pipeline bridge is the last step |
+| 01.5 | op25 install for P25 Phase II trunked digital | ✅ op25 built on Pi; **PCWIN locked & decoding end-to-end** (NAC 0x3b1, SYSID 0x3bb) — talkgroup-tagged P25 rows flow through the pipeline via the UDP audio bridge |
 | 02 | Capture → squelch → VAD → Whisper → SQLite | ✅ Done |
 | 03 | Multi-freq scanner + LangGraph classify/extract/alert + APRS-IS + Ntfy push | ✅ Done |
 | 04 | FastAPI + Streamlit dashboard with live feed, Folium map, monsoon tab, NL→SQL | ✅ Done |
-| 05 | Polish, systemd services, demo | ⏳ Planned |
+| 05 | systemd units for every always-on service (incl. API + dashboard) | ✅ Done |
+| 06+ | Single-dongle SDR supervisor + Band Manager, P25 leg live, leg-failure watchdog, NWS watches/warnings in the digest, selectable faster-whisper backend | ✅ Done |
 
 Live captures already include verified Tucson Rural Metro / AMR dispatch traffic — e.g. `"Med 843, respond code 2, TC unknown, 205 West Irvington Road"` (a real EMS dispatch to a traffic collision, structured-extracted as `units=['Med 843']`, `locations=['205 W Irvington Rd']`, `severity=medium`) and `"Heart problem, 55."` (cardiac call, auto-classified as `severity=high` → Ntfy push delivered to phone). On a non-monsoon test day the Sonnet 4.6 digest agent correctly read 27 voice rows plus 13 APRS weather station packets, tabulated rainfall (`0.00 in` across the sensor network), and concluded "flash flood risk is negligible at this time" — cross-source reasoning with citations.
 
 ## What's interesting about it
 
-- **Three parallel decode paths, one agent graph.** Analog FM voice, P25 Phase II trunked digital (planned), and APRS-IS packet data all converge on a single LangGraph pipeline. Each has a different physical-layer decoder; the downstream intelligence is identical.
+- **Three parallel decode paths, one agent graph.** Analog FM voice, P25 Phase II trunked digital (live on PCWIN via op25), and APRS-IS packet data all converge on a single LangGraph pipeline. Each has a different physical-layer decoder; the downstream intelligence is identical.
 - **Activity-hold frequency scanner.** A single $40 dongle can only tune one channel at a time, so the scanner probes each priority frequency for ~1 s using RMS-domain squelch, holds when signal appears, and resumes scanning after a configurable hangover. Periodically suspends scanning to visit NOAA Weather Radio for forecast context. The probe audio is prepended to the first hold chunk so short transmissions don't slip between cycles.
 - **One dongle, scheduled — an SDR supervisor with a hybrid "Band Manager."** Analog FM and P25/PCWIN can't both hold the SDR at once, so a single supervisor process owns the device and time-shares the two RF legs: it runs one, holds it for an assigned dwell window, then cleanly tears it down (so the SDR fully releases) and switches. The split comes from a Band Manager that's deterministic by default (a P25-primary rota that always works, no LLM) but, when enabled, lets a cheap model re-weight the dwell from live conditions already in the DB — rising stream-gauge discharge, recent flood/fire/EMS traffic, monsoon season — camping on PCWIN when flooding looks active and widening the analog sweep when it's quiet. The agent can only *tune* the rota: its output is clamped and any failure falls back to the deterministic plan. The whole loop is dependency-injected (fake processes + fake clock), so it's unit-tested without an SDR.
 - **Multi-stage signal gating.** A coarse RMS-domain squelch drops noise-only chunks (free), then WebRTC VAD finds speech boundaries inside the survivors (cheap), and only then does Whisper run (expensive). Wasted GPU-equivalent compute is minimized at every layer.
@@ -43,7 +44,7 @@ flowchart TB
             SQU["RMS squelch<br/>(drop noise-only)"]
             VAD["webrtcvad<br/>(speech segments)"]
         end
-        WHIS["Whisper small<br/>(~244 MB, CPU)"]
+        WHIS["Whisper small.en, CPU<br/>(openai or faster-whisper)"]
         FILT["Hallucination filter<br/>(no_speech_prob, logprob)"]
         DB[("SQLite (WAL)<br/>events.db")]
         WORKER["Agent worker<br/>(polls every 5s)"]
@@ -80,7 +81,7 @@ flowchart TB
 | 153.815 MHz | Rural Metro EMS Dispatch | Analog FM | Planned |
 | 162.3975 MHz | NOAA Weather Radio Tucson | Analog FM | ✅ Validated (calibration source) |
 | 144.390 MHz | APRS 2m national | Packet (AFSK1200) | ⏳ Awaits 2nd dongle |
-| 853.625 MHz | PCWIN Simulcast A control channel | P25 Phase II | 🟢 op25 locked & decoding PCWIN on the Pi (audio→pipeline bridge remaining) |
+| 853.625 MHz | PCWIN Simulcast A control channel | P25 Phase II | ✅ Live — op25 locked & decoding PCWIN through the pipeline (UDP audio bridge) |
 
 Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC operate on **PCWIN** (Project 25 Phase II trunked digital). Tucson PD and Marana PD talkgroups are encrypted and out of scope. Verified frequencies and the priority talkgroup catalog are in [`config/frequencies.py`](./config/frequencies.py) (`PCWIN`, `PCWIN_TALKGROUPS`); the op25 build/run runbook is [`deploy/op25_setup.md`](./deploy/op25_setup.md).
 
