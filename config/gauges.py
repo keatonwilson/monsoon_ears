@@ -21,13 +21,19 @@ class GaugeSite:
     wash: str     # the named wash/watercourse this gauge sits on
     lat: float
     lon: float
+    # Some reaches carry perennial flow (e.g. treated-effluent discharge), so a
+    # nonzero discharge there is NORMAL, not a flood. For these, only a clearly
+    # rising stage/discharge trend is a flood signal — see agents/alert.py.
+    baseflow: bool = False
 
 
 # Tucson-metro USGS streamgages on the washes the project tracks. (Barrel
 # Canyon / Sonoita and other far-south sites are intentionally excluded.)
 USGS_SITES: list[GaugeSite] = [
     GaugeSite("09482500", "Santa Cruz River at Tucson", "usgs", "Santa Cruz", 32.221, -110.982),
-    GaugeSite("09486500", "Santa Cruz River at Cortaro", "usgs", "Santa Cruz", 32.351, -111.096),
+    # Cortaro sits below the metro wastewater plants and runs ~tens of cfs of
+    # treated effluent year-round, so steady nonzero flow here is not a flood.
+    GaugeSite("09486500", "Santa Cruz River at Cortaro", "usgs", "Santa Cruz", 32.351, -111.096, baseflow=True),
     GaugeSite("09482000", "Santa Cruz River at Continental", "usgs", "Santa Cruz", 31.872, -110.980),
     GaugeSite("09484000", "Sabino Creek near Tucson", "usgs", "Sabino", 32.315, -110.811),
     GaugeSite("09484500", "Tanque Verde Creek at Tucson", "usgs", "Tanque Verde", 32.264, -110.841),
@@ -53,3 +59,9 @@ def site_wash(site_id: str) -> str | None:
     """The named wash a gauge sits on, for the digest prompt / dashboard."""
     site = _SITE_BY_ID.get(site_id)
     return site.wash if site else None
+
+
+def site_is_baseflow(site_id: str) -> bool:
+    """True if this gauge carries perennial baseflow (nonzero flow is normal)."""
+    site = _SITE_BY_ID.get(site_id)
+    return bool(site and site.baseflow)

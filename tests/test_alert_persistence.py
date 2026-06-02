@@ -127,3 +127,75 @@ def test_monsoon_digest_persists_alert_when_should_alert(temp_db, monkeypatch):
     assert persisted.source == "monsoon_digest"
     assert persisted.summary and "Rillito" in persisted.summary
     assert persisted.correlated_event_ids == [1]
+
+
+def test_monsoon_digest_persists_no_alert_verdict_without_pushing(temp_db, monkeypatch):
+    """A clean 'no flood' verdict is persisted (so /summary reflects it) but does
+    NOT push or pollute the alert history."""
+    from agents.alert import DigestResponse, monsoon_digest
+    from db.database import TranscriptionEventRow, get_session
+    from db.queries import latest_digest_alert, recent_alerts
+
+    with get_session() as s:
+        s.add(TranscriptionEventRow(
+            timestamp=datetime.now(timezone.utc),
+            frequency_mhz=154.37, raw_text="routine check", duration_sec=2.0,
+            transmission_type="flood_control",
+        ))
+        s.commit()
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            return DigestResponse(should_alert=False, reason="all clear",
+                                  summary="No active flash flood situation.")
+
+    class FakeClient:
+        messages = FakeMessages()
+
+    pushes = []
+    monkeypatch.setattr("agents.alert.push_ntfy", lambda **kw: pushes.append(kw) or True)
+
+    decision = monsoon_digest(client=FakeClient())
+    assert decision.should_alert is False
+    assert pushes == []  # no push on a clean verdict
+
+    latest = latest_digest_alert()
+    assert latest is not None and latest.should_alert is False
+    assert "No active" in (latest.summary or "")
+    # The non-alert verdict must not show up in the alert history.
+    assert recent_alerts(source="monsoon_digest") == []
+
+
+def test_monsoon_digest_persists_no_activity_verdict(temp_db):
+    """Even the no-data short-circuit is persisted, so the dashboard shows a
+    fresh 'quiet' verdict instead of a stale alert."""
+    from agents.alert import monsoon_digest
+    from db.queries import latest_digest_alert
+
+    decision = monsoon_digest()  # nothing seeded → no-recent-activity branch
+    assert decision.should_alert is False
+    assert decision.reason == "no recent activity"
+
+    latest = latest_digest_alert()
+    assert latest is not None and latest.should_alert is False
+
+
+def test_format_gauges_marks_baseflow_reach():
+    from datetime import datetime, timezone
+    from types import SimpleNamespace
+
+    from agents.alert import _MONSOON_PROMPT, _format_gauges
+    from config.gauges import site_is_baseflow
+
+    assert site_is_baseflow("09486500") is True   # Santa Cruz @ Cortaro (effluent)
+    assert site_is_baseflow("09485700") is False  # Rillito @ Dodge
+
+    cortaro = SimpleNamespace(
+        timestamp=datetime(2026, 6, 1, 2, 45, tzinfo=timezone.utc),
+        discharge_cfs=45.0, gage_height_ft=8.33, precip_in=None,
+        site_id="09486500", site_name="Santa Cruz River at Cortaro", source="usgs",
+    )
+    out = _format_gauges([cortaro])
+    assert "[baseflow]" in out and "Cortaro" in out
+    # The prompt explains what [baseflow] means.
+    assert "baseflow" in _MONSOON_PROMPT.lower()
