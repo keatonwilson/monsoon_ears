@@ -9,6 +9,7 @@ from db.database import (
     EventThreadRow,
     GaugeReadingRow,
     TranscriptionEventRow,
+    WeatherAlertRow,
     get_session,
 )
 from models.schemas import (
@@ -19,6 +20,7 @@ from models.schemas import (
     GaugeReading,
     TranscriptionEvent,
     TransmissionType,
+    WeatherAlert,
 )
 
 
@@ -168,6 +170,53 @@ def insert_gauge_reading(reading: GaugeReading) -> int:
         session.commit()
         session.refresh(row)
         return row.id
+
+
+def insert_weather_alert(alert: WeatherAlert) -> Optional[int]:
+    """Persist an NWS alert, deduped by alert_id. Returns the new row id, or
+    None if we already have this alert_id (NWS re-serves active alerts on every
+    poll)."""
+    with get_session() as session:
+        existing = session.exec(
+            select(WeatherAlertRow.id).where(WeatherAlertRow.alert_id == alert.alert_id).limit(1)
+        ).first()
+        if existing is not None:
+            return None
+        row = WeatherAlertRow(
+            alert_id=alert.alert_id,
+            event=alert.event,
+            severity=alert.severity,
+            certainty=alert.certainty,
+            urgency=alert.urgency,
+            headline=alert.headline,
+            description=alert.description,
+            area_desc=alert.area_desc,
+            status=alert.status,
+            message_type=alert.message_type,
+            onset=alert.onset,
+            expires=alert.expires,
+            sent=alert.sent,
+            fetched_at=alert.fetched_at,
+        )
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return row.id
+
+
+def active_weather_alerts(now: Optional[datetime] = None) -> list[WeatherAlertRow]:
+    """NWS alerts that haven't expired yet (null expiry = treated as active).
+    Newest first. Drives the digest's weather-alert section and /weather."""
+    now = now or datetime.now(timezone.utc)
+    with get_session() as session:
+        stmt = (
+            select(WeatherAlertRow)
+            .where(
+                (WeatherAlertRow.expires.is_(None)) | (WeatherAlertRow.expires >= now)
+            )
+            .order_by(WeatherAlertRow.fetched_at.desc())
+        )
+        return list(session.exec(stmt))
 
 
 def recent_gauges(minutes: int = 60) -> list[GaugeReadingRow]:

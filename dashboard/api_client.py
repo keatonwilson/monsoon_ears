@@ -53,6 +53,9 @@ class APIClient:
     def alerts(self, **params) -> dict[str, Any]:
         return self._get("/alerts", params=params)
 
+    def weather_alerts(self) -> dict[str, Any]:
+        return self._get("/weather/alerts")
+
     def nl_query(self, question: str) -> dict[str, Any]:
         return self._post("/query", body={"question": question})
 

@@ -104,6 +104,28 @@ class EventThreadRow(SQLModel, table=True):
     closed: bool = Field(default=False, index=True)
 
 
+class WeatherAlertRow(SQLModel, table=True):
+    """Active NWS watch/warning/advisory (api.weather.gov) for the Tucson point.
+    Deduped by `alert_id`; the monsoon digest reads the currently-active ones."""
+    __tablename__ = "weather_alerts"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    alert_id: str = Field(index=True)
+    event: str = Field(index=True)
+    severity: Optional[str] = None
+    certainty: Optional[str] = None
+    urgency: Optional[str] = None
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    area_desc: Optional[str] = None
+    status: Optional[str] = None
+    message_type: Optional[str] = None
+    onset: Optional[datetime] = None
+    expires: Optional[datetime] = Field(default=None, index=True)
+    sent: Optional[datetime] = None
+    fetched_at: datetime = Field(index=True)
+
+
 class AlertRow(SQLModel, table=True):
     """Persisted alert history. Written by `alert_node` (rule-based) and by
     `monsoon_digest` whenever it returns `should_alert=True`."""

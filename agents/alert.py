@@ -23,7 +23,13 @@ from pydantic import BaseModel
 # it used to live in this module before being shared with the classify stage.
 from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
 from config.gauges import site_is_baseflow, site_wash
-from db.queries import insert_alert, recent_aprs, recent_flood_events, recent_gauges
+from db.queries import (
+    active_weather_alerts,
+    insert_alert,
+    recent_aprs,
+    recent_flood_events,
+    recent_gauges,
+)
 from models.schemas import AlertDecision, ExtractedEvent, Severity
 
 logger = logging.getLogger(__name__)
@@ -106,6 +112,9 @@ def push_ntfy(
 # Verbatim from .claude/plan.md §Phase 03 — the monsoon correlation prompt.
 _MONSOON_PROMPT = """You are monitoring Tucson emergency radio and APRS weather stations.
 
+Active NWS watches/warnings/advisories for the Tucson area (official):
+{weather_alerts}
+
 Recent flood-control / fire / EMS radio activity (last {voice_window} min):
 {flood_events}
 
@@ -115,6 +124,9 @@ APRS weather station readings near mentioned locations (last {aprs_window} min):
 Official stream/rain gauge readings — USGS + Pima County ALERT (last {gauge_window} min):
 {gauges}
 
+An active NWS Flash Flood Warning/Watch is the strongest official signal — weigh
+it heavily. Conversely, if NWS shows nothing and rainfall/gauges are flat, be
+skeptical of radio chatter alone.
 Are these consistent with an active flash flood situation?
 Identify washes mentioned, correlate with nearby rainfall AND stream-gauge
 discharge (rising discharge / gage height on a named wash is the strongest
@@ -134,6 +146,17 @@ class DigestResponse(BaseModel):
     reason: Optional[str] = None
     correlation_note: Optional[str] = None
     correlated_event_ids: list[int] = []
+
+
+def _format_weather_alerts(rows) -> str:
+    if not rows:
+        return "(none active)"
+    lines = []
+    for r in rows[:10]:
+        exp = f", expires {r.expires:%H:%M}" if r.expires else ""
+        head = (r.headline or r.event or "").strip().replace("\n", " ")
+        lines.append(f"- [{r.severity or '?'}] {r.event}{exp}: {head[:160]}")
+    return "\n".join(lines)
 
 
 def _format_flood_events(rows) -> str:
@@ -210,8 +233,9 @@ def monsoon_digest(
     voice_rows = recent_flood_events(minutes=voice_window_min)
     aprs_rows = recent_aprs(minutes=aprs_window_min)
     gauge_rows = recent_gauges(minutes=gauge_window_min)
+    weather_rows = active_weather_alerts()
 
-    if not voice_rows and not aprs_rows and not gauge_rows:
+    if not voice_rows and not aprs_rows and not gauge_rows and not weather_rows:
         logger.info("monsoon_digest: no recent activity, skipping LLM call")
         decision = AlertDecision(should_alert=False, reason="no recent activity")
     else:
@@ -219,6 +243,7 @@ def monsoon_digest(
             voice_window=voice_window_min,
             aprs_window=aprs_window_min,
             gauge_window=gauge_window_min,
+            weather_alerts=_format_weather_alerts(weather_rows),
             flood_events=_format_flood_events(voice_rows),
             aprs_weather=_format_aprs(aprs_rows),
             gauges=_format_gauges(gauge_rows),

@@ -234,3 +234,20 @@ def test_thread_serializer_exposes_source_and_talkgroup(api_client):
     # Per-event detail carries the label too.
     detail = api_client.get(f"/threads/{t['id']}").json()
     assert detail["events"][0]["talkgroup_label"] == "TFD A2 — All Dispatches"
+
+
+def test_weather_alerts_endpoint(api_client):
+    from datetime import timedelta
+    from db.queries import insert_weather_alert
+    from models.schemas import WeatherAlert
+
+    assert api_client.get("/weather/alerts").json() == {"count": 0, "results": []}
+
+    now = datetime.now(timezone.utc)
+    insert_weather_alert(WeatherAlert(
+        alert_id="ffw-api", event="Flash Flood Warning", severity="Severe",
+        headline="FFW", expires=now + timedelta(hours=1), fetched_at=now,
+    ))
+    body = api_client.get("/weather/alerts").json()
+    assert body["count"] == 1
+    assert body["results"][0]["event"] == "Flash Flood Warning"

@@ -23,7 +23,8 @@ import time
 
 from dotenv import load_dotenv
 
-from db.queries import insert_gauge_reading
+from db.queries import insert_gauge_reading, insert_weather_alert
+from ingestion.nws_client import fetch_nws_alerts, nws_enabled
 from ingestion.pima_alert_client import fetch_pima_alert, pima_alert_enabled
 from ingestion.usgs_client import fetch_usgs
 
@@ -35,23 +36,39 @@ def _setup_logging() -> None:
     logging.basicConfig(level=level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 
-def _poll_once(seen: dict[tuple[str, str], str]) -> int:
-    """One fetch cycle across enabled sources. Returns rows inserted."""
-    readings = list(fetch_usgs())
-    if pima_alert_enabled():
-        # ALERT is a 100+ gauge rain table; only persist gauges with rain.
-        readings += [r for r in fetch_pima_alert() if (r.precip_in or 0) > 0]
-
+def _poll_once(seen: dict[tuple[str, str], str]) -> tuple[int, int]:
+    """One fetch cycle across enabled environmental sources. Returns
+    (gauge_rows_inserted, weather_alerts_inserted). A failure in one source must
+    not skip the others, so each is wrapped independently."""
     inserted = 0
-    for r in readings:
-        key = (r.source, r.site_id)
-        stamp = r.timestamp.isoformat()
-        if seen.get(key) == stamp:
-            continue  # unchanged since last poll
-        insert_gauge_reading(r)
-        seen[key] = stamp
-        inserted += 1
-    return inserted
+    try:
+        readings = list(fetch_usgs())
+        if pima_alert_enabled():
+            # ALERT is a 100+ gauge rain table; only persist gauges with rain.
+            readings += [r for r in fetch_pima_alert() if (r.precip_in or 0) > 0]
+        for r in readings:
+            key = (r.source, r.site_id)
+            stamp = r.timestamp.isoformat()
+            if seen.get(key) == stamp:
+                continue  # unchanged since last poll
+            insert_gauge_reading(r)
+            seen[key] = stamp
+            inserted += 1
+    except Exception as exc:  # noqa: BLE001 — one bad source must not kill the others
+        logger.warning("gauge fetch error: %s", exc)
+
+    alerts_inserted = 0
+    if nws_enabled():
+        try:
+            # insert_weather_alert dedupes by NWS alert_id, so re-served active
+            # alerts are skipped without an in-memory seen set.
+            for a in fetch_nws_alerts():
+                if insert_weather_alert(a) is not None:
+                    alerts_inserted += 1
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("NWS fetch error: %s", exc)
+
+    return inserted, alerts_inserted
 
 
 def main() -> int:
@@ -60,7 +77,8 @@ def main() -> int:
     log = logging.getLogger("runner_gauges")
 
     poll_min = float(os.getenv("GAUGE_POLL_MIN", 15))
-    log.info("gauge runner started; poll=%.0fmin, pima_alert=%s", poll_min, pima_alert_enabled())
+    log.info("gauge runner started; poll=%.0fmin, pima_alert=%s, nws=%s",
+             poll_min, pima_alert_enabled(), nws_enabled())
 
     shutting_down = False
 
@@ -79,9 +97,9 @@ def main() -> int:
     backoff = 30
     while not shutting_down:
         try:
-            n = _poll_once(seen)
-            if n:
-                log.info("stored %d new gauge reading(s)", n)
+            n, alerts = _poll_once(seen)
+            if n or alerts:
+                log.info("stored %d new gauge reading(s), %d new NWS alert(s)", n, alerts)
             backoff = 30
         except Exception as exc:  # noqa: BLE001 — keep the loop alive on transient errors
             log.warning("gauge poll error: %s; retrying sooner", exc)
