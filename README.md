@@ -217,6 +217,8 @@ All runtime tuning lives in `.env` — see [`.env.example`](./.env.example). The
 | `NOAA_VISIT_INTERVAL_MIN` | `15` | Periodic visit to NOAA Weather Radio for forecast context — scanner suspends rotation, captures `NOAA_VISIT_DURATION_SEC`, returns to scanning. |
 | `DIGEST_INTERVAL_MIN` | `15` | Cadence of the Sonnet 4.6 monsoon-correlation digest job. |
 | `APRS_IS_FILTER` | `r/32.2/-110.9/50` | APRS-IS server-side filter — circular radius around a point (50 km from downtown Tucson by default). |
+| `APRS_IS_CALLSIGN` | `N0CALL` | APRS-IS login. Set to your own licensed callsign to be a good citizen (anonymous `N0CALL` clients may be filtered). |
+| `APRS_IS_PASSCODE` | `-1` | `-1` = receive-only (identifies you, no packet injection). Only set a real verified passcode if you ever need to transmit — we never do. |
 
 ## Project layout
 

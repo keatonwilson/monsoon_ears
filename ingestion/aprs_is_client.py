@@ -5,10 +5,14 @@ connected gateway worldwide. Subscribing with a server-side filter
 (`r/<lat>/<lon>/<km>`) gives us all Tucson-area weather stations, mobile
 tracks, and bulletins without needing a second RTL-SDR dongle.
 
-The connection is read-only and anonymous (`callsign='N0CALL', passwd='-1'`).
-aprslib calls a callback for each parsed packet; we shape the relevant fields
-into an `APRSEvent` and write it to the same `aprs_events` table that the
-voice pipeline already shares.
+The connection defaults to read-only and anonymous (`callsign='N0CALL',
+passwd='-1'`). Set `APRS_IS_CALLSIGN` to your own licensed callsign to be a good
+APRS-IS citizen — identifying yourself avoids future server-side filtering of
+anonymous clients. A passcode of `-1` keeps the login receive-only (you cannot
+inject packets), which is exactly what we want; set `APRS_IS_PASSCODE` to your
+verified passcode only if you ever need to transmit. aprslib calls a callback
+for each parsed packet; we shape the relevant fields into an `APRSEvent` and
+write it to the same `aprs_events` table that the voice pipeline already shares.
 
 Run with:
     APRS_IS_ENABLED=true uv run python -m ingestion.aprs_is_client
@@ -96,6 +100,20 @@ def packet_to_event(packet: dict) -> APRSEvent | None:
     )
 
 
+def aprs_login_params() -> tuple[str, str, str, str]:
+    """Resolve the APRS-IS login from env: (callsign, passcode, server, filter).
+
+    Defaults are anonymous receive-only (`N0CALL` / `-1`). A real callsign with
+    passcode `-1` identifies us without granting injection rights — the
+    recommended posture for a listen-only feed.
+    """
+    callsign = os.getenv("APRS_IS_CALLSIGN", "N0CALL").strip() or "N0CALL"
+    passcode = os.getenv("APRS_IS_PASSCODE", "-1").strip() or "-1"
+    server = os.getenv("APRS_IS_SERVER", "rotate.aprs.net")
+    filter_str = os.getenv("APRS_IS_FILTER", "r/32.2/-110.9/50")
+    return callsign, passcode, server, filter_str
+
+
 def _make_callback(stats: dict):
     def _on_packet(packet):
         try:
@@ -120,9 +138,14 @@ def main() -> int:
         log.info("APRS_IS_ENABLED=false; exiting (set true to start the feed)")
         return 0
 
-    callsign = os.getenv("APRS_IS_CALLSIGN", "N0CALL")
-    filter_str = os.getenv("APRS_IS_FILTER", "r/32.2/-110.9/50")
-    server = os.getenv("APRS_IS_SERVER", "rotate.aprs.net")
+    callsign, passcode, server, filter_str = aprs_login_params()
+    if callsign == "N0CALL":
+        log.info("APRS-IS using anonymous N0CALL (receive-only). Set "
+                 "APRS_IS_CALLSIGN to your callsign to identify the feed.")
+    elif passcode == "-1":
+        log.info("APRS-IS identifying as %s, receive-only (passcode -1)", callsign)
+    else:
+        log.info("APRS-IS authenticating as %s with a verified passcode", callsign)
 
     import aprslib
 
@@ -146,7 +169,7 @@ def main() -> int:
         try:
             log.info("APRS-IS connecting to %s with filter %s as %s",
                      server, filter_str, callsign)
-            ais = aprslib.IS(callsign, passwd="-1", host=server, port=14580)
+            ais = aprslib.IS(callsign, passwd=passcode, host=server, port=14580)
             ais.set_filter(filter_str)
             ais.connect()
             ais.consumer(_make_callback(stats), raw=False)
