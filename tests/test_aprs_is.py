@@ -7,7 +7,7 @@ skipped where aprslib isn't installed (it's a `pi` extra, absent on dev Macs).
 
 import pytest
 
-from ingestion.aprs_is_client import packet_to_event
+from ingestion.aprs_is_client import aprs_login_params, packet_to_event
 
 
 def test_standard_weather_converts_to_imperial(aprs_packets_by_category):
@@ -70,6 +70,33 @@ def test_all_fixture_packets_round_trip(aprs_packets):
             assert event.rainfall_in >= 0.0
         if event.wind_mph is not None:
             assert event.wind_mph >= 0.0
+
+
+# --- Login params -----------------------------------------------------------
+
+
+def test_login_params_default_anonymous(monkeypatch):
+    for k in ("APRS_IS_CALLSIGN", "APRS_IS_PASSCODE", "APRS_IS_SERVER", "APRS_IS_FILTER"):
+        monkeypatch.delenv(k, raising=False)
+    callsign, passcode, server, _filter = aprs_login_params()
+    assert callsign == "N0CALL"
+    assert passcode == "-1"  # receive-only
+
+
+def test_login_params_real_callsign_stays_receive_only(monkeypatch):
+    monkeypatch.setenv("APRS_IS_CALLSIGN", "KD7ABC")
+    monkeypatch.delenv("APRS_IS_PASSCODE", raising=False)
+    callsign, passcode, _server, _filter = aprs_login_params()
+    assert callsign == "KD7ABC"
+    assert passcode == "-1"  # identified, but no injection rights by default
+
+
+def test_login_params_blank_env_falls_back(monkeypatch):
+    monkeypatch.setenv("APRS_IS_CALLSIGN", "  ")
+    monkeypatch.setenv("APRS_IS_PASSCODE", "")
+    callsign, passcode, _server, _filter = aprs_login_params()
+    assert callsign == "N0CALL"
+    assert passcode == "-1"
 
 
 # --- Empirical: pin aprslib's actual unit handling --------------------------
