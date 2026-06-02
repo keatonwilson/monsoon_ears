@@ -22,7 +22,7 @@ from pydantic import BaseModel
 # `looks_like_hallucination` is re-exported here for backwards compatibility —
 # it used to live in this module before being shared with the classify stage.
 from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
-from config.gauges import site_wash
+from config.gauges import site_is_baseflow, site_wash
 from db.queries import insert_alert, recent_aprs, recent_flood_events, recent_gauges
 from models.schemas import AlertDecision, ExtractedEvent, Severity
 
@@ -119,6 +119,11 @@ Are these consistent with an active flash flood situation?
 Identify washes mentioned, correlate with nearby rainfall AND stream-gauge
 discharge (rising discharge / gage height on a named wash is the strongest
 flood signal), assess severity, and flag if road closures appear imminent.
+
+Gauges marked [baseflow] carry perennial flow (e.g. a treated-effluent reach),
+so steady nonzero discharge there is NORMAL and is NOT by itself a flood signal
+— only a clearly rising stage/discharge trend on such a gauge counts. Do not
+raise an alert on baseflow alone, especially when rainfall is zero everywhere.
 """
 
 
@@ -176,8 +181,9 @@ def _format_gauges(rows) -> str:
             bits.append(f"precip={r.precip_in:.2f}in")
         wash = site_wash(r.site_id)
         where = f" [{wash}]" if wash else ""
+        tag = " [baseflow]" if site_is_baseflow(r.site_id) else ""
         name = (r.site_name or r.site_id)
-        lines.append(f"- {r.timestamp:%H:%M} {name}{where} ({r.source}): " + (", ".join(bits) or "(no data)"))
+        lines.append(f"- {r.timestamp:%H:%M} {name}{where}{tag} ({r.source}): " + (", ".join(bits) or "(no data)"))
     return "\n".join(lines)
 
 
@@ -207,41 +213,44 @@ def monsoon_digest(
 
     if not voice_rows and not aprs_rows and not gauge_rows:
         logger.info("monsoon_digest: no recent activity, skipping LLM call")
-        return AlertDecision(should_alert=False, reason="no recent activity")
+        decision = AlertDecision(should_alert=False, reason="no recent activity")
+    else:
+        prompt = _MONSOON_PROMPT.format(
+            voice_window=voice_window_min,
+            aprs_window=aprs_window_min,
+            gauge_window=gauge_window_min,
+            flood_events=_format_flood_events(voice_rows),
+            aprs_weather=_format_aprs(aprs_rows),
+            gauges=_format_gauges(gauge_rows),
+        )
 
-    prompt = _MONSOON_PROMPT.format(
-        voice_window=voice_window_min,
-        aprs_window=aprs_window_min,
-        gauge_window=gauge_window_min,
-        flood_events=_format_flood_events(voice_rows),
-        aprs_weather=_format_aprs(aprs_rows),
-        gauges=_format_gauges(gauge_rows),
-    )
+        client = client if client is not None else _get_digest_client()
+        model_name = model or os.getenv("DIGEST_MODEL", "claude-sonnet-4-6")
+        # 1024 truncated ~21% of structured outputs in the first soak
+        # (instructor IncompleteOutputException) now that the digest also folds in
+        # gauges + a fuller event list. 2048 gives the JSON room to close.
+        max_tokens = int(os.getenv("DIGEST_MAX_TOKENS", 2048))
+        response: DigestResponse = client.messages.create(
+            model=model_name,
+            max_tokens=max_tokens,
+            messages=[{"role": "user", "content": prompt}],
+            response_model=DigestResponse,
+        )
+        decision = AlertDecision(
+            should_alert=response.should_alert,
+            reason=response.reason,
+            summary=response.summary,
+            correlated_event_ids=response.correlated_event_ids,
+            correlation_note=response.correlation_note,
+        )
+        logger.info("monsoon_digest: should_alert=%s reason=%s",
+                    decision.should_alert, decision.reason)
 
-    client = client if client is not None else _get_digest_client()
-    model_name = model or os.getenv("DIGEST_MODEL", "claude-sonnet-4-6")
-    # 1024 truncated ~21% of structured outputs in the first soak
-    # (instructor IncompleteOutputException) now that the digest also folds in
-    # gauges + a fuller event list. 2048 gives the JSON room to close.
-    max_tokens = int(os.getenv("DIGEST_MAX_TOKENS", 2048))
-    response: DigestResponse = client.messages.create(
-        model=model_name,
-        max_tokens=max_tokens,
-        messages=[{"role": "user", "content": prompt}],
-        response_model=DigestResponse,
-    )
-
-    decision = AlertDecision(
-        should_alert=response.should_alert,
-        reason=response.reason,
-        summary=response.summary,
-        correlated_event_ids=response.correlated_event_ids,
-        correlation_note=response.correlation_note,
-    )
-    logger.info("monsoon_digest: should_alert=%s reason=%s",
-                decision.should_alert, decision.reason)
+    # Persist EVERY verdict (not just alerts) so /summary always reflects the
+    # latest run — otherwise a clean "no flood" result leaves the dashboard
+    # showing a stale alert. Only PUSH when it's an actual alert.
+    insert_alert(source="monsoon_digest", decision=decision)
     if decision.should_alert:
-        insert_alert(source="monsoon_digest", decision=decision)
         push_ntfy(
             title="Monsoon correlation",
             body=(decision.summary or "Monsoon-correlated activity detected")

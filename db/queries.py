@@ -211,7 +211,12 @@ def recent_alerts(
     limit: int = 50,
     since_minutes: int = 24 * 60,
     source: Optional[str] = None,
+    alerting_only: bool = True,
 ) -> list[AlertRow]:
+    """Recent alert history. `alerting_only` (default) keeps this a true alert
+    log: the monsoon digest now persists every verdict (incl. should_alert=False
+    so /summary reflects the latest run), and those non-alert rows must not show
+    up here."""
     cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
     with get_session() as session:
         stmt = (
@@ -222,6 +227,8 @@ def recent_alerts(
         )
         if source:
             stmt = stmt.where(AlertRow.source == source)
+        if alerting_only:
+            stmt = stmt.where(AlertRow.should_alert == True)  # noqa: E712
         return list(session.exec(stmt))
 
 
