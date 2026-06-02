@@ -127,3 +127,36 @@ then restart the supervisor:
 sudo systemctl restart monsoon-sdr
 journalctl -u monsoon-sdr -f
 ```
+
+## 6. The control-channel re-lock cost (and how to minimize it)
+
+Every time the P25 leg *starts*, op25 has to re-acquire the PCWIN control channel
+before it can follow calls — measured at **~20–22s** on the Pi (leg start → the
+`Reconfiguring NAC from 0x000 to 0x3b1` lock line). Calls in that window are
+missed. In a time-shared P25-primary rota that's one re-lock per cycle (≈6/hour at
+`SDR_CYCLE_MIN=10`). This is inherent to giving up the dongle for the analog leg —
+there's no warm hand-off, op25 must cold-start.
+
+Levers, cheapest first:
+
+1. **Hold the leg.** The supervisor now *keeps op25 alive across cycle boundaries*
+   when the next segment is the same leg (see `_run_segment` keep-alive). So a
+   **P25-only posture** pays the re-lock exactly **once, at startup**, then never
+   again:
+   ```bash
+   SDR_ENABLE_ANALOG=false     # op25 holds the dongle continuously — zero re-locks
+   ```
+   Use this during an active monsoon event when analog (NW Fire / NOAA / ham)
+   isn't needed.
+2. **Amortize.** Keep both legs but lengthen the cycle so the fixed re-lock cost is
+   a smaller fraction of each P25 dwell and happens less often:
+   ```bash
+   SDR_CYCLE_MIN=20            # ~3 re-locks/hour instead of ~6, longer P25 dwell
+   ```
+3. **Let the Band Manager decide** (`BAND_MANAGER_AGENT=true`): on rising gauges /
+   flood traffic it shifts weight toward P25, lengthening the P25 dwell and so
+   amortizing the re-lock when it matters most.
+
+> Note: in the default **P25-primary-with-analog** rota the legs alternate every
+> cycle, so the keep-alive never triggers and the per-cycle re-lock is unavoidable
+> — switch to a P25-only posture (lever 1) to eliminate it.
