@@ -199,3 +199,35 @@ def test_format_gauges_marks_baseflow_reach():
     assert "[baseflow]" in out and "Cortaro" in out
     # The prompt explains what [baseflow] means.
     assert "baseflow" in _MONSOON_PROMPT.lower()
+
+
+def test_monsoon_digest_feeds_active_weather_alert_to_prompt(temp_db, monkeypatch):
+    """An active NWS alert alone triggers the LLM path and reaches the prompt."""
+    from datetime import timedelta
+
+    from agents.alert import DigestResponse, monsoon_digest
+    from db.queries import insert_weather_alert
+    from models.schemas import WeatherAlert
+
+    now = datetime.now(timezone.utc)
+    insert_weather_alert(WeatherAlert(
+        alert_id="ffw1", event="Flash Flood Warning",
+        headline="Flash Flood Warning for eastern Pima County",
+        severity="Severe", expires=now + timedelta(hours=2), fetched_at=now,
+    ))
+
+    captured = {}
+
+    class FakeMessages:
+        def create(self, **kwargs):
+            captured["prompt"] = kwargs["messages"][0]["content"]
+            return DigestResponse(should_alert=True, summary="FFW active", reason="nws")
+
+    class FakeClient:
+        messages = FakeMessages()
+
+    monkeypatch.setattr("agents.alert.push_ntfy", lambda **kw: True)
+
+    decision = monsoon_digest(client=FakeClient())
+    assert "Flash Flood Warning" in captured["prompt"]
+    assert decision.should_alert is True

@@ -16,6 +16,19 @@ def _format_timestamp(iso: str | None) -> str:
 def render(client: APIClient) -> None:
     st.subheader("Monsoon correlation")
 
+    # --- Active NWS watches/warnings ----------------------------------------
+    try:
+        wx = client.weather_alerts()
+    except Exception:  # noqa: BLE001 — never let the banner break the tab
+        wx = {"count": 0, "results": []}
+    for a in wx.get("results", []):
+        event = (a.get("event") or "").lower()
+        line = f"**{a.get('event')}** — {a.get('headline') or a.get('area_desc') or ''}"
+        if "flood" in event or (a.get("severity") in ("Extreme", "Severe")):
+            st.error(f"🚨 {line}")
+        else:
+            st.warning(f"⚠️ {line}")
+
     # --- Latest Sonnet digest -----------------------------------------------
     try:
         summary = client.summary()

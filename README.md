@@ -28,7 +28,7 @@ Live captures already include verified Tucson Rural Metro / AMR dispatch traffic
 - **Whisper hallucination filtering.** Whisper is notorious for emitting ghost text on silence (lone CJK characters, "you", "Thanks for watching!"). The pipeline uses Whisper's own per-segment `no_speech_prob`, `avg_logprob`, and `compression_ratio` to drop these before they reach the database.
 - **Decoupled agent worker.** A separate Pi-side process polls SQLite for unclassified rows, runs a LangGraph DAG (`classify` → `extract` → `alert`) with Anthropic Haiku 4.5 via `instructor` (structured Pydantic output), geocodes locations via cached Nominatim, and pushes high-severity events to Ntfy.sh. Decoupling means Anthropic outages just backlog the queue instead of breaking capture.
 - **APRS-IS instead of a 2nd dongle.** APRS data comes from the public APRS-IS internet feed via `aprslib` with a server-side Tucson-area filter — broader coverage than a single antenna would deliver, no extra hardware, no cost.
-- **The monsoon correlation feature.** Every 15 minutes a Sonnet 4.6 digest agent reads the last hour of fire/EMS/flood-control voice traffic, the last 30 minutes of APRS weather packets, **and real-time stream/rain-gauge readings** (USGS Water Services + best-effort Pima County ALERT) and decides whether they look correlated. Stream discharge on a named wash is the strongest flood signal, so it anchors the reasoning alongside the radio chatter. On a non-flood day, it correctly returns "no active situation" with a tabular summary of all sensor readings and event IDs it considered. This is the showcase capability.
+- **The monsoon correlation feature.** Every 15 minutes a Sonnet 4.6 digest agent reads the last hour of fire/EMS/flood-control voice traffic, the last 30 minutes of APRS weather packets, **real-time stream/rain-gauge readings** (USGS Water Services + best-effort Pima County ALERT), **and active NWS watches/warnings** (api.weather.gov) and decides whether they look correlated. An official NWS Flash Flood Warning is the strongest signal and anchors the verdict; stream discharge on a named wash is next (perennial-effluent reaches like the Santa Cruz at Cortaro are flagged so steady baseflow isn't mistaken for a flood). On a non-flood day, it correctly returns "no active situation" with a tabular summary of all sensor readings and event IDs it considered. This is the showcase capability.
 - **Edge ingestion + cloud reasoning, deliberately.** Capture, transcription, and structured extraction run on a $90 device that sits on the network indefinitely. Only the Anthropic API calls (classify/extract per event + Sonnet digest every 15 min) leave the LAN. The split mirrors how production IoT + AI systems are actually built.
 
 ## Architecture
@@ -156,7 +156,7 @@ journalctl -u monsoon-sdr -f
 
 | Port | Process | Role |
 |---|---|---|
-| 8000 | FastAPI / uvicorn | Read-only JSON API (`/events`, `/aprs`, `/summary`, `/alerts`, `/query`) |
+| 8000 | FastAPI / uvicorn | Read-only JSON API (`/events`, `/aprs`, `/gauges`, `/weather/alerts`, `/summary`, `/alerts`, `/query`) |
 | 8501 | Streamlit | Browser dashboard (live feed, Folium map, 24 h activity, monsoon tab, NL→SQL) |
 
 ### Natural-language query box

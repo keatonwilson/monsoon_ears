@@ -85,6 +85,27 @@ class GaugeReading(BaseModel):
     precip_in: Optional[float] = None
 
 
+class WeatherAlert(BaseModel):
+    """An active NWS watch/warning/advisory from api.weather.gov for the Tucson
+    point. A Flash Flood Warning here is the strongest official flood signal —
+    it anchors the monsoon digest alongside radio + gauges."""
+    id: Optional[int] = None
+    alert_id: str                       # NWS properties.id (stable per message)
+    event: str                          # e.g. "Flash Flood Warning"
+    severity: Optional[str] = None      # Extreme | Severe | Moderate | Minor | Unknown
+    certainty: Optional[str] = None
+    urgency: Optional[str] = None
+    headline: Optional[str] = None
+    description: Optional[str] = None
+    area_desc: Optional[str] = None
+    status: Optional[str] = None        # Actual | Test | ...
+    message_type: Optional[str] = None  # Alert | Update | Cancel
+    onset: Optional[datetime] = None
+    expires: Optional[datetime] = None
+    sent: Optional[datetime] = None
+    fetched_at: datetime
+
+
 class AlertDecision(BaseModel):
     should_alert: bool
     reason: Optional[str] = None
