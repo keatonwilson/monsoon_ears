@@ -11,7 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 load_dotenv()
 
 from api.deps import get_settings  # noqa: E402
-from api.routes import alerts, aprs, events, gauges, query, sdr, summary, threads, weather  # noqa: E402
+from api.routes import alerts, aprs, events, gauges, hourly, query, sdr, summary, threads, weather  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -37,6 +37,7 @@ app.include_router(gauges.router)
 app.include_router(summary.router)
 app.include_router(alerts.router)
 app.include_router(threads.router)
+app.include_router(hourly.router)
 app.include_router(sdr.router)
 app.include_router(query.router)
 app.include_router(weather.router)

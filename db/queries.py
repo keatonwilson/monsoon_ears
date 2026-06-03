@@ -8,6 +8,7 @@ from db.database import (
     APRSEventRow,
     EventThreadRow,
     GaugeReadingRow,
+    HourlySummaryRow,
     TranscriptionEventRow,
     WeatherAlertRow,
     get_session,
@@ -469,6 +470,66 @@ def threads_needing_summary(limit: int = 25) -> list[EventThreadRow]:
             .where(EventThreadRow.closed == True)  # noqa: E712
             .where(EventThreadRow.summarized_at.is_(None))
             .order_by(EventThreadRow.id.asc())
+            .limit(limit)
+        )
+        return list(session.exec(stmt))
+
+
+# --- Hourly all-events summary -------------------------------------------------
+
+
+def insert_hourly_summary(
+    *,
+    window_start: datetime,
+    window_end: datetime,
+    summary: Optional[str],
+    event_count: int,
+    by_type: Optional[dict] = None,
+    top_incidents: Optional[list] = None,
+    severity_max: Optional[str] = None,
+    gauge_note: Optional[str] = None,
+    weather_note: Optional[str] = None,
+) -> int:
+    """Persist one hourly rollup. Returns the new row id."""
+    row = HourlySummaryRow(
+        generated_at=datetime.now(timezone.utc),
+        window_start=window_start,
+        window_end=window_end,
+        summary=summary,
+        event_count=event_count,
+        by_type=by_type or None,
+        top_incidents=top_incidents or None,
+        severity_max=severity_max,
+        gauge_note=gauge_note,
+        weather_note=weather_note,
+    )
+    with get_session() as session:
+        session.add(row)
+        session.commit()
+        session.refresh(row)
+        return row.id
+
+
+def latest_hourly_summary() -> Optional[HourlySummaryRow]:
+    """Most recent hourly rollup, regardless of age."""
+    with get_session() as session:
+        stmt = (
+            select(HourlySummaryRow)
+            .order_by(HourlySummaryRow.id.desc())
+            .limit(1)
+        )
+        result = list(session.exec(stmt))
+        return result[0] if result else None
+
+
+def recent_hourly_summaries(limit: int = 24, since_minutes: int = 24 * 60) -> list[HourlySummaryRow]:
+    """Recent hourly rollups, newest first."""
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=since_minutes)
+    with get_session() as session:
+        stmt = (
+            select(HourlySummaryRow)
+            .where(HourlySummaryRow.window_end >= cutoff)
+            .order_by(HourlySummaryRow.id.desc())
             .limit(limit)
         )
         return list(session.exec(stmt))

@@ -21,6 +21,7 @@ from dotenv import load_dotenv
 
 from agents.alert import monsoon_digest
 from agents.graph import run_for_row
+from agents.hourly_summary import hourly_summary
 from agents.summarize import summarize_pending
 from db.queries import close_idle_threads, fetch_unclassified
 
@@ -42,6 +43,7 @@ def main() -> int:
 
     poll_sec = float(os.getenv("WORKER_POLL_SEC", 5))
     digest_min = int(os.getenv("DIGEST_INTERVAL_MIN", 15))
+    hourly_min = int(os.getenv("HOURLY_INTERVAL_MIN", 60))
     batch_size = int(os.getenv("WORKER_BATCH_SIZE", 10))
 
     from apscheduler.schedulers.background import BackgroundScheduler
@@ -50,18 +52,25 @@ def main() -> int:
     # APScheduler quirk: next_run_time=None on add_job means "never fire."
     # To skip the boot-time fire but still run on the interval, pass an
     # explicit first run one interval out.
-    first_run = datetime.now(timezone.utc) + timedelta(minutes=digest_min)
+    now = datetime.now(timezone.utc)
     scheduler.add_job(
         monsoon_digest,
         trigger="interval",
         minutes=digest_min,
         id="monsoon_digest",
-        next_run_time=first_run,
+        next_run_time=now + timedelta(minutes=digest_min),
+    )
+    scheduler.add_job(
+        hourly_summary,
+        trigger="interval",
+        minutes=hourly_min,
+        id="hourly_summary",
+        next_run_time=now + timedelta(minutes=hourly_min),
     )
     scheduler.start()
     log.info(
-        "worker started; poll=%.1fs batch=%d digest_every=%dmin",
-        poll_sec, batch_size, digest_min,
+        "worker started; poll=%.1fs batch=%d digest_every=%dmin hourly_every=%dmin",
+        poll_sec, batch_size, digest_min, hourly_min,
     )
 
     shutting_down = False
