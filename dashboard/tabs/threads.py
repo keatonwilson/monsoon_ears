@@ -73,10 +73,11 @@ def _render_thread(client: APIClient, t: dict) -> None:
                 st.error(f"API error: {exc}")
                 return
             for ev in detail.get("events", []):
+                text = ev.get("corrected_text") or ev["raw_text"]
                 st.write(
                     f"`{fmt_az(ev['timestamp'])}` "
                     f"[{channel_label(ev)}] "
-                    f"({ev['duration_sec']:.1f}s) — {ev['raw_text']}"
+                    f"({ev['duration_sec']:.1f}s) — {text}"
                 )
 
 
@@ -87,9 +88,11 @@ def render(client: APIClient) -> None:
         "into a thread and summarized by Haiku 4.5 once the channel goes idle."
     )
 
-    col1, col2 = st.columns([1, 2])
+    col1, col2, col3 = st.columns([1, 1, 1])
     minutes = col1.slider("Window (min)", 30, 24 * 60, 60 * 24, step=30, key="threads_window")
-    auto = col2.toggle("Auto-refresh (30s)", value=True, key="threads_auto")
+    show_noise = col2.toggle("Show noise", value=False, key="threads_show_noise",
+                             help="Include threads the summarizer judged unintelligible.")
+    auto = col3.toggle("Auto-refresh (30s)", value=True, key="threads_auto")
 
     if auto:
         try:
@@ -108,9 +111,21 @@ def render(client: APIClient) -> None:
         st.info("No threads yet. The scanner + worker need to run for a bit.")
         return
 
-    st.caption(f"{data['count']} thread(s)")
+    results = data["results"]
+    if not show_noise:
+        results = [t for t in results if not t.get("is_noise")]
+    hidden = data["count"] - len(results)
+
+    caption = f"{len(results)} thread(s)"
+    if hidden:
+        caption += f" · {hidden} noise hidden"
+    st.caption(caption)
+    if not results:
+        st.info("All recent threads were noise. Toggle “Show noise” to see them.")
+        return
+
     current_date: str | None = None
-    for t in data["results"]:
+    for t in results:
         label = az_date_label(t.get("start_timestamp"))
         if label != current_date:
             st.markdown(f"### {label}")

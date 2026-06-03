@@ -95,6 +95,36 @@ def test_summarize_pending_only_processes_closed_unsummarized(temp_db):
     assert n3 == 0
 
 
+def test_summarize_thread_persists_is_noise(temp_db):
+    """A cluster the model judges unintelligible is flagged is_noise so the
+    dashboard can hide it by default."""
+    _seed_thread(n_events=2)
+    from db.queries import recent_threads, thread_by_id
+
+    thread = recent_threads()[0]
+    response = ThreadSummary(
+        summary="Fragments are static / unintelligible.",
+        transmission_type=TransmissionType.UNKNOWN,
+        severity=Severity.UNKNOWN,
+        locations=[], units=[],
+        is_noise=True,
+    )
+    summarize_thread(thread.id, client=FakeClient(response))
+    assert thread_by_id(thread.id).is_noise is True
+
+
+def test_summarize_thread_defaults_is_noise_false(temp_db):
+    _seed_thread(n_events=2)
+    from db.queries import recent_threads, thread_by_id
+
+    thread = recent_threads()[0]
+    summarize_thread(thread.id, client=FakeClient(ThreadSummary(
+        summary="Engine 31 to a fire.", transmission_type=TransmissionType.FIRE,
+        severity=Severity.HIGH, locations=[], units=["Engine 31"],
+    )))
+    assert thread_by_id(thread.id).is_noise is False
+
+
 def test_summarize_thread_uses_configurable_model(temp_db):
     _seed_thread(n_events=2)
     from db.queries import recent_threads

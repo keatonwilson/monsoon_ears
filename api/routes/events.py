@@ -18,6 +18,7 @@ def _serialize(row) -> dict[str, Any]:
         "timestamp": row.timestamp.isoformat() if row.timestamp else None,
         "frequency_mhz": row.frequency_mhz,
         "raw_text": row.raw_text,
+        "corrected_text": row.corrected_text,
         "duration_sec": row.duration_sec,
         "source": row.source,
         "talkgroup_id": row.talkgroup_id,

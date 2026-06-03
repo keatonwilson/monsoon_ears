@@ -106,6 +106,7 @@ def update_extraction(row_id: int, e: ExtractedEvent) -> None:
         row.lon = e.lon
         row.wash_name = e.wash_name
         row.road_closure = e.road_closure
+        row.corrected_text = e.corrected_text
         session.add(row)
         session.commit()
 
@@ -483,6 +484,7 @@ def update_thread_summary(
     locations: Optional[list],
     units: Optional[list],
     incident_type: Optional[str],
+    is_noise: bool = False,
 ) -> None:
     with get_session() as session:
         row = session.get(EventThreadRow, thread_id)
@@ -494,6 +496,7 @@ def update_thread_summary(
         row.locations = locations
         row.units = units
         row.incident_type = incident_type
+        row.is_noise = is_noise
         row.summarized_at = datetime.now(timezone.utc)
         session.add(row)
         session.commit()
