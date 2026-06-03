@@ -43,6 +43,12 @@ class ThreadSummary(BaseModel):
     incident_type: Optional[str] = Field(
         default=None, description="Short label e.g. 'cardiac arrest', 'structure fire'.",
     )
+    is_noise: bool = Field(
+        default=False,
+        description="True if these fragments are just noise / unintelligible "
+                    "garble with no real incident (the dashboard hides these by "
+                    "default). False for any genuine transmission.",
+    )
 
 
 def _build_prompt(rows) -> str:
@@ -60,8 +66,8 @@ def _build_prompt(rows) -> str:
         + "\n\nReconstruct what happened in 1–3 plain-English sentences. "
           "Connect fragments where they obviously refer to the same incident. "
           "Don't quote verbatim; paraphrase clearly. If the fragments are "
-          "noise or unintelligible, say so concisely. Identify locations, "
-          "units, severity, and a short incident_type label."
+          "noise or unintelligible, say so concisely and set is_noise=true. "
+          "Identify locations, units, severity, and a short incident_type label."
     )
 
 
@@ -106,6 +112,7 @@ def summarize_thread(
         locations=response.locations or None,
         units=response.units or None,
         incident_type=response.incident_type,
+        is_noise=response.is_noise,
     )
     logger.info(
         "summarize_thread(%d, %d events): %s",

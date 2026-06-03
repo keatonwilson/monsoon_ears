@@ -34,6 +34,9 @@ class TranscriptionEventRow(SQLModel, table=True):
     lon: Optional[float] = None
     wash_name: Optional[str] = None
     road_closure: Optional[bool] = None
+    # Phase: accuracy — transcript with garbled local proper nouns repaired by
+    # the extract LLM against the Tucson gazetteer. Null = clean or unintelligible.
+    corrected_text: Optional[str] = None
 
 
 class APRSEventRow(SQLModel, table=True):
@@ -102,6 +105,9 @@ class EventThreadRow(SQLModel, table=True):
     # `closed`: thread has gone idle past THREAD_GAP_SEC; auto-summarizer
     # only touches closed threads. `False` means it may still gain events.
     closed: bool = Field(default=False, index=True)
+    # `is_noise`: the summarizer judged the cluster unintelligible / pure noise.
+    # The dashboard hides these by default (with a "Show noise" toggle).
+    is_noise: bool = Field(default=False, index=True)
 
 
 class WeatherAlertRow(SQLModel, table=True):
@@ -183,6 +189,10 @@ _COLUMN_MIGRATIONS: dict[str, list[tuple[str, str]]] = {
     "event_threads": [
         ("source", "VARCHAR DEFAULT 'analog'"),
         ("talkgroup_id", "INTEGER"),
+        ("is_noise", "BOOLEAN DEFAULT 0"),
+    ],
+    "transcription_events": [
+        ("corrected_text", "VARCHAR"),
     ],
 }
 
@@ -193,6 +203,10 @@ def _migrate_columns(engine) -> None:
     with engine.connect() as conn:
         for table, columns in _COLUMN_MIGRATIONS.items():
             existing = {row[1] for row in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if not existing:
+                # Table doesn't exist in this DB (PRAGMA returns no rows) — nothing
+                # to migrate. create_all() owns table creation; we only add columns.
+                continue
             for name, ddl in columns:
                 if name not in existing:
                     conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))

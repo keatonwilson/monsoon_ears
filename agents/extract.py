@@ -23,19 +23,14 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from config.gazetteer import DISPATCH_CODES_HINT, TUCSON_WASHES, gazetteer_reference
 from models.schemas import ClassifiedEvent, ExtractedEvent, Severity
 
 logger = logging.getLogger(__name__)
 
-TUCSON_WASHES = (
-    "Rillito", "Pantano", "Santa Cruz", "Tanque Verde", "Sabino",
-    "Cañada del Oro", "Brawley", "Julian",
-)
-
-DISPATCH_CODES_HINT = (
-    "code 2 (no lights/sirens), code 3 (lights/sirens), TC (traffic collision), "
-    "MVA (motor vehicle accident), 10-50 (accident), 10-52 (ambulance needed)"
-)
+# TUCSON_WASHES / DISPATCH_CODES_HINT now live in config/gazetteer.py and are
+# imported above; the geocoding regex below and existing importers keep using
+# them from this module unchanged.
 
 # Only geocode locations that came from a confidently-classified transmission.
 # Garbled transcripts get low classifier confidence; geocoding their nonsense
@@ -86,22 +81,57 @@ class ExtractResponse(BaseModel):
     severity: Severity = Field(default=Severity.UNKNOWN)
     wash_name: Optional[str] = Field(default=None, description="One of Tucson's named washes if mentioned.")
     road_closure: Optional[bool] = Field(default=None, description="True only if a road closure is explicitly mentioned.")
+    corrected_text: Optional[str] = Field(
+        default=None,
+        description="The transcript with garbled proper nouns (street, wash, "
+                    "agency, place names) repaired against the known Tucson "
+                    "reference list. Null if the text was already clean or is "
+                    "too unintelligible to repair. Fix ONLY clear local-name "
+                    "garbles; never paraphrase, reword, or invent content.",
+    )
+
+
+# Standing extract instructions + the Tucson gazetteer. This block carries no
+# per-event bytes, so it rides in a `cache_control`'d system block (identical on
+# every call) — keeping the per-call cost of all this context near zero during
+# active traffic, where many events share the 5-minute cache window.
+_EXTRACT_SYSTEM = (
+    "You extract structured incident data from Tucson public-safety radio "
+    "transcripts and repair garbled local proper nouns.\n\n"
+    "Return only entities the text actually mentions. Don't invent. If no "
+    "location is mentioned, return an empty list. Severity: 'high' for any "
+    "life-threat (cardiac, structure fire, flood, MCI); 'medium' for typical "
+    "EMS or fire response; 'low' for routine; 'unknown' if you really can't "
+    "tell. Set road_closure only if the dispatcher or units explicitly say a "
+    "road is closed. Flag wash_name only if one of the named washes is "
+    "mentioned.\n\n"
+    "corrected_text: if the transcript contains garbled versions of the local "
+    "street/wash/agency/place names below, return the transcript with those "
+    "names repaired and nothing else changed. Repair ONLY obvious local-name "
+    "garbles (e.g. 'speed wait'->'Speedway', 'tank a verde'->'Tanque Verde'). "
+    "Do not paraphrase or reword. Return null if the text is already clean or "
+    "too garbled to repair confidently.\n\n"
+    + gazetteer_reference()
+)
+
+
+def _cached_system(text: str) -> list[dict]:
+    """A single `cache_control`'d system block (default 5-min ephemeral TTL).
+
+    The extract/classify cadence is bursty (a thread fires many events within a
+    couple of minutes), so the default TTL is the right fit. Kept inline rather
+    than depending on agents/caching.py so this accuracy branch stays
+    independent of the cost branch; the two can be unified once both land.
+    """
+    return [{"type": "text", "text": text, "cache_control": {"type": "ephemeral"}}]
 
 
 def _build_prompt(classified: ClassifiedEvent) -> str:
     return (
-        "Extract structured incident data from this Tucson public-safety radio transcript.\n\n"
+        "Extract structured incident data from this transcript.\n\n"
         f"Frequency: {classified.frequency_mhz} MHz\n"
         f"Type: {classified.transmission_type.value}\n"
-        f"Text: \"{classified.raw_text}\"\n\n"
-        f"Known Tucson washes (flag if mentioned): {', '.join(TUCSON_WASHES)}\n"
-        f"Common dispatch shorthand: {DISPATCH_CODES_HINT}\n\n"
-        "Return only entities the text actually mentions. Don't invent. If no "
-        "location is mentioned, return an empty list. Severity: 'high' for "
-        "any life-threat (cardiac, structure fire, flood, MCI); 'medium' for "
-        "typical EMS or fire response; 'low' for routine; 'unknown' if "
-        "you really can't tell. Set road_closure only if the dispatcher "
-        "or units explicitly say a road is closed."
+        f"Text: \"{classified.raw_text}\""
     )
 
 
@@ -343,6 +373,7 @@ def extract_event(
     response = client.messages.create(
         model=model_name,
         max_tokens=512,
+        system=_cached_system(_EXTRACT_SYSTEM),
         messages=[{"role": "user", "content": _build_prompt(classified)}],
         response_model=ExtractResponse,
     )
@@ -370,4 +401,5 @@ def extract_event(
         lon=lon,
         wash_name=response.wash_name,
         road_closure=response.road_closure,
+        corrected_text=response.corrected_text,
     )

@@ -27,10 +27,13 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 from typing import Optional
 
 import numpy as np
+
+from agents.hallucination import _HALLUCINATION_PHRASES
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +46,13 @@ LOGPROB_THRESHOLD = -1.0
 # no_speech_prob) still tends to score a poor avg_logprob. Drop anything below
 # this regardless of no_speech_prob. Stricter than LOGPROB_THRESHOLD so it only
 # fires on clearly low-confidence output — real dispatch traffic scores higher.
-LOGPROB_DROP_THRESHOLD = -1.2
+LOGPROB_DROP_THRESHOLD = -1.1
 COMPRESSION_RATIO_THRESHOLD = 2.4
+# Below this fraction of letters/digits/spaces, the text is mostly punctuation
+# or symbol garble — a common Whisper-on-noise failure mode. Env-overridable.
+MIN_ALPHA_RATIO = 0.6
+
+_WORD_RE = re.compile(r"[A-Za-z']+")
 
 # NOTE: we deliberately do NOT pass a Whisper `initial_prompt`. We tried seeding
 # one with Tucson scanner vocabulary (agencies, codes, washes) to bias decoding,
@@ -155,6 +163,28 @@ def _env_float(name: str, default: float) -> float:
         return default
 
 
+def _text_noise_reason(text: str) -> Optional[str]:
+    """Content-based noise heuristics on the decoded text itself (independent of
+    Whisper's confidence scores). Catches boilerplate leakage, symbol garble,
+    and single-word stutters that still score an OK avg_logprob."""
+    stripped = text.strip()
+    lowered = stripped.lower()
+    # Known YouTube/boilerplate leakage (shared with the LLM-stage gate).
+    if any(p in lowered for p in _HALLUCINATION_PHRASES):
+        return "boilerplate phrase"
+    # Mostly non-letter garble (punctuation/symbol soup from pure noise).
+    alpha_ratio_t = _env_float("MIN_ALPHA_RATIO", MIN_ALPHA_RATIO)
+    usable = sum(c.isalnum() or c.isspace() for c in stripped)
+    if stripped and usable / len(stripped) < alpha_ratio_t:
+        return f"low_alpha_ratio={usable / len(stripped):.2f}"
+    # A single word repeated ("yeah yeah yeah", "okay okay okay") — Whisper's
+    # classic loop on tones/static. Two+ distinct words clears this.
+    words = [w.lower() for w in _WORD_RE.findall(stripped)]
+    if len(words) >= 3 and len(set(words)) == 1:
+        return f"repeated_word={words[0]!r}"
+    return None
+
+
 def _is_hallucination(r: TranscriptionResult) -> Optional[str]:
     """Return a reason string if the result looks hallucinated, else None."""
     no_speech_t = _env_float("NO_SPEECH_THRESHOLD", NO_SPEECH_THRESHOLD)
@@ -179,6 +209,10 @@ def _is_hallucination(r: TranscriptionResult) -> Optional[str]:
     # transmissions are always longer.
     if len(r.text) < 3:
         return f"too_short ({len(r.text)} chars)"
+    # Content-based gates (boilerplate, symbol soup, single-word loops).
+    text_reason = _text_noise_reason(r.text)
+    if text_reason:
+        return text_reason
     return None
 
 

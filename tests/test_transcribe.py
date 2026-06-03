@@ -52,6 +52,30 @@ def test_invalid_env_falls_back_to_default(monkeypatch):
     assert _is_hallucination(_result(no_speech_prob=0.1, avg_logprob=-1.5)) is not None
 
 
+# --- content-based noise gates (independent of Whisper's confidence scores) ----
+
+
+def test_boilerplate_phrase_dropped():
+    # YouTube-transcript leakage that scores fine on confidence still gets cut.
+    reason = _is_hallucination(_result(text="thanks for watching everyone"))
+    assert reason == "boilerplate phrase"
+
+
+def test_symbol_garble_dropped():
+    reason = _is_hallucination(_result(text="@#$%^&*()@#"))
+    assert reason and reason.startswith("low_alpha_ratio=")
+
+
+def test_single_repeated_word_dropped():
+    reason = _is_hallucination(_result(text="yeah yeah yeah yeah"))
+    assert reason and reason.startswith("repeated_word=")
+
+
+def test_real_dispatch_survives_content_gates():
+    # A normal multi-word dispatch must clear all the new content gates.
+    assert _is_hallucination(_result()) is None
+
+
 # --- backend dispatch (_decode) — fake models, neither library installed ------
 
 import numpy as np

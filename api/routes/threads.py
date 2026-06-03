@@ -36,6 +36,7 @@ def _serialize_thread(row, include_events: bool = False) -> dict[str, Any]:
         "incident_type": row.incident_type,
         "summarized_at": row.summarized_at.isoformat() if row.summarized_at else None,
         "closed": row.closed,
+        "is_noise": row.is_noise,
     }
     if include_events:
         out["events"] = [
@@ -43,6 +44,7 @@ def _serialize_thread(row, include_events: bool = False) -> dict[str, Any]:
                 "id": e.id,
                 "timestamp": e.timestamp.isoformat() if e.timestamp else None,
                 "raw_text": e.raw_text,
+                "corrected_text": e.corrected_text,
                 "duration_sec": e.duration_sec,
                 "source": e.source,
                 "talkgroup_id": e.talkgroup_id,
