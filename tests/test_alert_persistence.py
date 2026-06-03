@@ -184,7 +184,7 @@ def test_format_gauges_marks_baseflow_reach():
     from datetime import datetime, timezone
     from types import SimpleNamespace
 
-    from agents.alert import _MONSOON_PROMPT, _format_gauges
+    from agents.alert import _MONSOON_SYSTEM, _format_gauges
     from config.gauges import site_is_baseflow
 
     assert site_is_baseflow("09486500") is True   # Santa Cruz @ Cortaro (effluent)
@@ -197,8 +197,8 @@ def test_format_gauges_marks_baseflow_reach():
     )
     out = _format_gauges([cortaro])
     assert "[baseflow]" in out and "Cortaro" in out
-    # The prompt explains what [baseflow] means.
-    assert "baseflow" in _MONSOON_PROMPT.lower()
+    # The standing instructions explain what [baseflow] means.
+    assert "baseflow" in _MONSOON_SYSTEM.lower()
 
 
 def test_monsoon_digest_feeds_active_weather_alert_to_prompt(temp_db, monkeypatch):

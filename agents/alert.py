@@ -21,6 +21,7 @@ from pydantic import BaseModel
 
 # `looks_like_hallucination` is re-exported here for backwards compatibility —
 # it used to live in this module before being shared with the classify stage.
+from agents.caching import cached_system
 from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
 from config.gauges import site_is_baseflow, site_wash
 from db.queries import (
@@ -30,7 +31,7 @@ from db.queries import (
     recent_flood_events,
     recent_gauges,
 )
-from models.schemas import AlertDecision, ExtractedEvent, Severity
+from models.schemas import AlertDecision, ExtractedEvent, Severity, TransmissionType
 
 logger = logging.getLogger(__name__)
 
@@ -109,10 +110,40 @@ def push_ntfy(
 # --- LLM digest (Sonnet) -----------------------------------------------------
 
 
-# Verbatim from .claude/plan.md §Phase 03 — the monsoon correlation prompt.
-_MONSOON_PROMPT = """You are monitoring Tucson emergency radio and APRS weather stations.
+# The correlation prompt is split into a static instruction block and a
+# per-run data block. The static block carries no run-specific bytes so it can
+# be served from the prompt cache (cached_system, 1h TTL — the digest runs every
+# 15 min, longer than the default 5-min cache life). The volatile event data is
+# rendered separately into the user turn. Standing guidance is verbatim from
+# .claude/plan.md §Phase 03, expanded with an explicit decision rubric.
+_MONSOON_SYSTEM = """You are monitoring Tucson emergency radio, APRS weather \
+stations, and official stream/rain gauges for signs of an active flash flood.
 
-Active NWS watches/warnings/advisories for the Tucson area (official):
+Your job each run: decide whether the supplied signals are consistent with an
+active or imminent flash flood near Tucson / Pima County, and if so summarize it.
+
+How to weigh the signals:
+- An active NWS Flash Flood Warning or Watch is the strongest official signal —
+  weigh it heavily.
+- Rising stream-gauge discharge or gage height on a named wash is the strongest
+  *physical* signal. Correlate it with nearby APRS rainfall and with any washes
+  named in the radio traffic.
+- Conversely, if NWS shows nothing and rainfall and gauges are flat, be
+  skeptical of radio chatter alone — fire/EMS calls happen constantly and are
+  not by themselves flood evidence.
+
+Gauges marked [baseflow] carry perennial flow (e.g. a treated-effluent reach),
+so steady nonzero discharge there is NORMAL and is NOT by itself a flood signal
+— only a clearly rising stage/discharge trend on such a gauge counts. Do not
+raise an alert on baseflow alone, especially when rainfall is zero everywhere.
+
+Identify the washes mentioned, correlate rainfall with stream-gauge discharge,
+assess severity, and flag if road closures appear imminent. Set should_alert
+true only when the evidence genuinely points to flooding; a quiet, well-explained
+no-alert verdict is the correct and common outcome. Cite the event ids you
+relied on in correlated_event_ids."""
+
+_MONSOON_DATA = """Active NWS watches/warnings/advisories for the Tucson area (official):
 {weather_alerts}
 
 Recent flood-control / fire / EMS radio activity (last {voice_window} min):
@@ -124,19 +155,7 @@ APRS weather station readings near mentioned locations (last {aprs_window} min):
 Official stream/rain gauge readings — USGS + Pima County ALERT (last {gauge_window} min):
 {gauges}
 
-An active NWS Flash Flood Warning/Watch is the strongest official signal — weigh
-it heavily. Conversely, if NWS shows nothing and rainfall/gauges are flat, be
-skeptical of radio chatter alone.
-Are these consistent with an active flash flood situation?
-Identify washes mentioned, correlate with nearby rainfall AND stream-gauge
-discharge (rising discharge / gage height on a named wash is the strongest
-flood signal), assess severity, and flag if road closures appear imminent.
-
-Gauges marked [baseflow] carry perennial flow (e.g. a treated-effluent reach),
-so steady nonzero discharge there is NORMAL and is NOT by itself a flood signal
-— only a clearly rising stage/discharge trend on such a gauge counts. Do not
-raise an alert on baseflow alone, especially when rainfall is zero everywhere.
-"""
+Are these consistent with an active flash flood situation?"""
 
 
 class DigestResponse(BaseModel):
@@ -210,6 +229,57 @@ def _format_gauges(rows) -> str:
     return "\n".join(lines)
 
 
+# --- Digest gating -----------------------------------------------------------
+#
+# The digest used to call Sonnet on *any* recent activity. But fire/EMS chatter
+# is near-constant in a metro area, so that fired the (expensive) Sonnet call
+# every 15 min around the clock — ~96 calls/day — even with zero flood risk.
+# We now run the LLM only when a genuine flood *signal* is present; routine
+# fire/EMS traffic with flat gauges and no rain is logged as a cheap quiet
+# verdict without an LLM call. This is mission-safe: flood-control radio
+# traffic, rainfall, rising/elevated gauges, and flood-type NWS alerts all still
+# trigger a full run.
+
+
+def _gauge_flood_signal(gauge_rows) -> Optional[str]:
+    """Return a human reason if the gauges look flood-relevant, else None.
+
+    Two triggers: a non-baseflow reach running at/above DIGEST_GAUGE_CFS_FLOOR,
+    or a clearly rising stage/discharge trend (newest reading >=25% over the
+    prior one) on any reach. recent_gauges() returns rows newest-first.
+    """
+    floor = float(os.getenv("DIGEST_GAUGE_CFS_FLOOR", "50"))
+    by_site: dict[str, list] = {}
+    for r in gauge_rows:
+        by_site.setdefault(r.site_id, []).append(r)
+    for site_id, readings in by_site.items():
+        newest = readings[0]
+        where = site_wash(site_id) or site_id
+        if not site_is_baseflow(site_id) and (newest.discharge_cfs or 0.0) >= floor:
+            return f"elevated discharge on {where}"
+        if len(readings) >= 2:
+            prev = readings[1]
+            for attr in ("discharge_cfs", "gage_height_ft"):
+                new_v = getattr(newest, attr) or 0.0
+                old_v = getattr(prev, attr) or 0.0
+                if old_v > 0 and new_v >= old_v * 1.25:
+                    return f"rising {attr} on {where}"
+    return None
+
+
+def _flood_signal(weather_rows, voice_rows, aprs_rows, gauge_rows) -> Optional[str]:
+    """Return a reason string if any signal warrants the LLM correlation, else
+    None (meaning: only routine chatter / baseflow — skip the LLM)."""
+    for w in weather_rows:
+        if "flood" in (w.event or "").lower():
+            return f"active NWS alert: {w.event}"
+    if any((v.transmission_type or "") == TransmissionType.FLOOD_CONTROL.value for v in voice_rows):
+        return "flood-control radio traffic"
+    if any((a.rainfall_in or 0.0) > 0 for a in aprs_rows):
+        return "APRS rainfall reported"
+    return _gauge_flood_signal(gauge_rows)
+
+
 _digest_client = None
 
 
@@ -218,7 +288,14 @@ def _get_digest_client():
     if _digest_client is None:
         import anthropic
         import instructor
-        _digest_client = instructor.from_anthropic(anthropic.Anthropic())
+        # The digest's static system block uses a 1h cache TTL (see cached_system),
+        # which requires the extended-cache-ttl beta header. Without it the API
+        # rejects ttl="1h". The header is harmless when the cache isn't used.
+        _digest_client = instructor.from_anthropic(
+            anthropic.Anthropic(
+                default_headers={"anthropic-beta": "extended-cache-ttl-2025-04-11"}
+            )
+        )
     return _digest_client
 
 
@@ -235,11 +312,19 @@ def monsoon_digest(
     gauge_rows = recent_gauges(minutes=gauge_window_min)
     weather_rows = active_weather_alerts()
 
-    if not voice_rows and not aprs_rows and not gauge_rows and not weather_rows:
+    signal = _flood_signal(weather_rows, voice_rows, aprs_rows, gauge_rows)
+
+    if not (voice_rows or aprs_rows or gauge_rows or weather_rows):
         logger.info("monsoon_digest: no recent activity, skipping LLM call")
         decision = AlertDecision(should_alert=False, reason="no recent activity")
+    elif signal is None:
+        # Activity present, but it's routine fire/EMS chatter / baseflow with no
+        # flood evidence — skip the Sonnet call and persist a cheap quiet verdict.
+        logger.info("monsoon_digest: no flood signal in recent activity, skipping LLM call")
+        decision = AlertDecision(should_alert=False, reason="quiet: no flood signal")
     else:
-        prompt = _MONSOON_PROMPT.format(
+        logger.info("monsoon_digest: flood signal (%s) — running correlation", signal)
+        data = _MONSOON_DATA.format(
             voice_window=voice_window_min,
             aprs_window=aprs_window_min,
             gauge_window=gauge_window_min,
@@ -258,7 +343,10 @@ def monsoon_digest(
         response: DigestResponse = client.messages.create(
             model=model_name,
             max_tokens=max_tokens,
-            messages=[{"role": "user", "content": prompt}],
+            # Static standing instructions live in a cached system block (1h TTL
+            # so the 15-min cadence still hits); only the volatile data varies.
+            system=cached_system(_MONSOON_SYSTEM, ttl="1h"),
+            messages=[{"role": "user", "content": data}],
             response_model=DigestResponse,
         )
         decision = AlertDecision(
