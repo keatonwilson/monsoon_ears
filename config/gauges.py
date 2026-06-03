@@ -50,8 +50,8 @@ USGS_SITES: list[GaugeSite] = [
 ]
 
 # Best-effort; populated only if a usable ALERT endpoint is found (see
-# ingestion/pima_alert_client.py). Cañada del Oro has no USGS gauge and would
-# live here.
+# ingestion/pima_alert_client.py). Pima County ALERT rain/stage sites with no
+# USGS equivalent would live here.
 PIMA_ALERT_SITES: list[GaugeSite] = []
 
 
