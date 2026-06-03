@@ -222,8 +222,8 @@ def test_monsoon_digest_calls_llm_when_activity_present(temp_db, monkeypatch):
 
 
 def test_monsoon_digest_includes_gauges_in_prompt(temp_db, monkeypatch):
-    """A recent stream-gauge reading renders into the prompt — and gauges alone
-    are enough activity to trigger the digest (no voice/APRS needed)."""
+    """A recent stream-gauge reading renders into the prompt — and an elevated
+    non-baseflow reach is a flood signal that triggers the digest on its own."""
     from db.queries import insert_gauge_reading
     from models.schemas import GaugeReading
 
@@ -237,8 +237,72 @@ def test_monsoon_digest_includes_gauges_in_prompt(temp_db, monkeypatch):
     monkeypatch.setattr("agents.alert.push_ntfy", lambda **kwargs: True)
 
     decision = monsoon_digest(client=client)
-    assert client.messages.calls, "gauges alone should trigger the LLM call"
+    assert client.messages.calls, "an elevated gauge should trigger the LLM call"
     prompt = client.messages.calls[0]["messages"][0]["content"]
     assert "Q=850cfs" in prompt
     assert "Rillito" in prompt  # wash label from config/gauges.py
     assert decision.should_alert is True
+
+
+def test_monsoon_digest_skips_routine_fire_ems_chatter(temp_db):
+    """Fire/EMS chatter with no flood signal (no flood-control traffic, no rain,
+    flat gauges, no alerts) is logged as a quiet verdict WITHOUT an LLM call."""
+    from db.database import TranscriptionEventRow, get_session
+
+    now = datetime.now(timezone.utc)
+    with get_session() as s:
+        s.add(TranscriptionEventRow(
+            timestamp=now - timedelta(minutes=3),
+            frequency_mhz=154.37, raw_text="Engine 4 cardiac call on Speedway",
+            duration_sec=3.0, transmission_type="ems",
+        ))
+        s.commit()
+
+    client = FakeDigestClient(DigestResponse(should_alert=True))  # would alert if called
+    decision = monsoon_digest(client=client)
+    assert client.messages.calls == [], "routine fire/EMS chatter must not call the LLM"
+    assert decision.should_alert is False
+    assert "no flood signal" in (decision.reason or "")
+
+
+def test_monsoon_digest_baseflow_gauge_alone_does_not_trigger(temp_db):
+    """A steady non-elevated reading on a baseflow reach is not a flood signal."""
+    from db.queries import insert_gauge_reading
+    from models.schemas import GaugeReading
+
+    insert_gauge_reading(GaugeReading(
+        timestamp=datetime.now(timezone.utc),
+        source="usgs", site_id="09486500",  # Cortaro — baseflow=True in config
+        site_name="Santa Cruz River at Cortaro",
+        discharge_cfs=20.0, gage_height_ft=2.0,
+    ))
+    client = FakeDigestClient(DigestResponse(should_alert=True))
+    decision = monsoon_digest(client=client)
+    assert client.messages.calls == [], "baseflow discharge alone must not call the LLM"
+    assert decision.should_alert is False
+
+
+def test_monsoon_digest_uses_cached_system_block(temp_db, monkeypatch):
+    """When the LLM runs, the standing instructions ride in a cache_control'd
+    system block and the volatile data stays in the user turn."""
+    from db.database import TranscriptionEventRow, get_session
+
+    with get_session() as s:
+        s.add(TranscriptionEventRow(
+            timestamp=datetime.now(timezone.utc),
+            frequency_mhz=154.37, raw_text="rillito wash flooding over La Cholla",
+            duration_sec=3.0, transmission_type="flood_control",
+        ))
+        s.commit()
+
+    client = FakeDigestClient(DigestResponse(should_alert=False, reason="no correlation"))
+    monkeypatch.setattr("agents.alert.push_ntfy", lambda **kwargs: True)
+    monsoon_digest(client=client)
+
+    call = client.messages.calls[0]
+    system = call["system"]
+    assert isinstance(system, list) and system[0]["cache_control"]["type"] == "ephemeral"
+    assert system[0]["cache_control"].get("ttl") == "1h"
+    # Volatile event text must NOT be in the cached system prefix.
+    assert "rillito" not in system[0]["text"].lower()
+    assert "rillito" in call["messages"][0]["content"].lower()

@@ -26,6 +26,8 @@ from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlglot import exp
 
+from agents.caching import cached_system
+
 logger = logging.getLogger(__name__)
 
 
@@ -154,7 +156,7 @@ def _get_client():
 
 
 def _build_prompt(question: str) -> str:
-    return f"{SCHEMA_DOC}\n\nUser question: {question}\n\nReturn only the SQL."
+    return f"User question: {question}\n\nReturn only the SQL."
 
 
 def generate_sql(
@@ -168,6 +170,9 @@ def generate_sql(
     response = client.messages.create(
         model=model_name,
         max_tokens=512,
+        # The schema doc is identical on every question, so it rides in a cached
+        # system block (default 5-min TTL fits the bursty, interactive cadence).
+        system=cached_system(SCHEMA_DOC),
         messages=[{"role": "user", "content": _build_prompt(question)}],
         response_model=NLQueryResponse,
     )
