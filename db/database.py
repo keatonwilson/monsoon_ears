@@ -132,6 +132,28 @@ class WeatherAlertRow(SQLModel, table=True):
     fetched_at: datetime = Field(index=True)
 
 
+class HourlySummaryRow(SQLModel, table=True):
+    """An hourly rollup of *all* events across sources — a wide-angle complement
+    to the per-conversation threads. Written by `agents/hourly_summary.py` once
+    an hour; the dashboard's "Last hour" tab reads the latest plus a history.
+    """
+    __tablename__ = "hourly_summaries"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    generated_at: datetime = Field(index=True)
+    window_start: datetime = Field(index=True)
+    window_end: datetime = Field(index=True)
+    summary: Optional[str] = None
+    event_count: int = 0
+    # counts per transmission_type, e.g. {"fire": 12, "ems": 8}
+    by_type: Optional[dict] = Field(default=None, sa_column=Column(JSON))
+    # short list of the hour's most notable incidents
+    top_incidents: Optional[list] = Field(default=None, sa_column=Column(JSON))
+    severity_max: Optional[str] = None
+    gauge_note: Optional[str] = None
+    weather_note: Optional[str] = None
+
+
 class AlertRow(SQLModel, table=True):
     """Persisted alert history. Written by `alert_node` (rule-based) and by
     `monsoon_digest` whenever it returns `should_alert=True`."""

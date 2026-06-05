@@ -68,6 +68,12 @@ class APIClient:
     def resummarize_thread(self, thread_id: int) -> dict[str, Any]:
         return self._post(f"/threads/{thread_id}/summarize", body={})
 
+    def hourly_summary(self) -> dict[str, Any]:
+        return self._get("/hourly-summary")
+
+    def hourly_summaries(self, **params) -> dict[str, Any]:
+        return self._get("/hourly-summaries", params=params)
+
 
 class APIClientError(Exception):
     pass

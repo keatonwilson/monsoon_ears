@@ -11,7 +11,7 @@ import os
 import streamlit as st
 
 from dashboard.api_client import APIClient, APIClientError
-from dashboard.tabs import activity, live_feed, map_view, monsoon, query, threads
+from dashboard.tabs import activity, hourly, live_feed, map_view, monsoon, query, threads
 
 st.set_page_config(
     page_title="Monsoon Ears",
@@ -44,6 +44,7 @@ def main() -> None:
     client = _sidebar()
     tab_objs = st.tabs([
         "🧵 Threads",
+        "🕐 Last hour",
         "📡 Raw feed",
         "🗺️ Map",
         "📊 24h activity",
@@ -53,14 +54,16 @@ def main() -> None:
     with tab_objs[0]:
         threads.render(client)
     with tab_objs[1]:
-        live_feed.render(client)
+        hourly.render(client)
     with tab_objs[2]:
-        map_view.render(client)
+        live_feed.render(client)
     with tab_objs[3]:
-        activity.render(client)
+        map_view.render(client)
     with tab_objs[4]:
-        monsoon.render(client)
+        activity.render(client)
     with tab_objs[5]:
+        monsoon.render(client)
+    with tab_objs[6]:
         query.render(client)
 
 
