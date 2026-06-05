@@ -75,6 +75,38 @@ def _classified(
     )
 
 
+def test_extract_carries_corrected_text():
+    """The extractor's corrected_text (garbled local names repaired) flows into
+    the ExtractedEvent."""
+    response = ExtractResponse(
+        corrected_text="Engine 4 to a fire at Speedway and Kolb",
+    )
+    client = FakeClient(response)
+    out = extract_event(_classified("engine for to a fire at speed way and cobb"),
+                        client=client, skip_geocode=True)
+    assert out.corrected_text == "Engine 4 to a fire at Speedway and Kolb"
+
+
+def test_extract_corrected_text_persists_round_trip(tmp_path, monkeypatch):
+    """update_extraction writes corrected_text; the event read-back has it."""
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "events.db"))
+    import db.database as dbm
+    dbm._engine = None
+    from db.queries import event_by_id, insert_transcription, update_extraction
+    from models.schemas import TranscriptionEvent
+
+    rid = insert_transcription(TranscriptionEvent(
+        timestamp=datetime.now(timezone.utc), frequency_mhz=154.37,
+        raw_text="speed way and cobb", duration_sec=2.0,
+    ))
+    response = ExtractResponse(corrected_text="Speedway and Kolb")
+    out = extract_event(_classified("speed way and cobb"),
+                        client=FakeClient(response), skip_geocode=True)
+    update_extraction(rid, out)
+    assert event_by_id(rid).corrected_text == "Speedway and Kolb"
+    dbm._engine = None
+
+
 def test_extract_returns_extracted_event_with_response_fields():
     response = ExtractResponse(
         locations=["205 W Irvington Rd"],
@@ -195,13 +227,18 @@ def test_geocode_out_of_region_only_returns_none(monkeypatch):
 
 
 def test_extract_prompt_seeds_tucson_washes():
+    """The Tucson gazetteer (washes, codes) now rides in the cached system block
+    rather than the per-event user message, so the static reference caches."""
     response = ExtractResponse()
     client = FakeClient(response)
     extract_event(_classified(), client=client, skip_geocode=True)
-    prompt = client.messages.calls[0]["messages"][0]["content"]
-    assert "Rillito" in prompt
-    assert "Pantano" in prompt
-    assert "TC (traffic collision)" in prompt
+    call = client.messages.calls[0]
+    system_text = call["system"][0]["text"]
+    assert "Rillito" in system_text
+    assert "Pantano" in system_text
+    assert "TC (traffic collision)" in system_text
+    # And the system block is tagged for prompt caching.
+    assert call["system"][0]["cache_control"]["type"] == "ephemeral"
 
 
 def test_extract_includes_raw_text_for_fixture_samples(transcripts_by_category):

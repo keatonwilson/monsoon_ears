@@ -50,6 +50,7 @@ class ExtractedEvent(ClassifiedEvent):
     lon: Optional[float] = None
     wash_name: Optional[str] = None
     road_closure: Optional[bool] = None
+    corrected_text: Optional[str] = None
 
 
 class APRSEvent(BaseModel):

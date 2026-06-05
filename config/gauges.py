@@ -40,11 +40,18 @@ USGS_SITES: list[GaugeSite] = [
     GaugeSite("09485700", "Rillito Creek at Dodge Blvd", "usgs", "Rillito", 32.271, -110.915),
     GaugeSite("09484600", "Pantano Wash near Vail", "usgs", "Pantano", 32.036, -110.678),
     GaugeSite("09485000", "Rincon Creek near Tucson", "usgs", "Rincon", 32.130, -110.626),
+    # Added 2026-06-03 (scout_sources.py): four active IV gauges that densify
+    # coverage on tracked washes and add Cañada del Oro (NW-side, previously
+    # ungauged). All ephemeral — Silverlake is upstream of the effluent reaches.
+    GaugeSite("09482440", "Santa Cruz River at Silverlake Rd", "usgs", "Santa Cruz", 32.2001, -110.9878),
+    GaugeSite("09485450", "Pantano Wash at Broadway Blvd", "usgs", "Pantano", 32.2208, -110.8289),
+    GaugeSite("09486055", "Rillito Creek at La Cholla Blvd", "usgs", "Rillito", 32.3028, -111.0114),
+    GaugeSite("09486350", "Cañada del Oro below Ina Road", "usgs", "Cañada del Oro", 32.3362, -111.0421),
 ]
 
 # Best-effort; populated only if a usable ALERT endpoint is found (see
-# ingestion/pima_alert_client.py). Cañada del Oro has no USGS gauge and would
-# live here.
+# ingestion/pima_alert_client.py). Pima County ALERT rain/stage sites with no
+# USGS equivalent would live here.
 PIMA_ALERT_SITES: list[GaugeSite] = []
 
 
