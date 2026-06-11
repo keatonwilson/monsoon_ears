@@ -1,6 +1,7 @@
 import { NavLink, Outlet } from 'react-router'
 
 import { StatusBar } from '@/components/StatusBar'
+import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -46,6 +47,7 @@ export default function App() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Outlet />
       </main>
+      <Toaster position="bottom-right" />
     </div>
   )
 }
