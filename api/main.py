@@ -12,14 +12,12 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
-from api.deps import get_settings  # noqa: E402
 from api.routes import (  # noqa: E402
     alerts,
     aprs,
@@ -43,16 +41,10 @@ app = FastAPI(
                 "APRS weather packets, and the monsoon-correlation digest.",
 )
 
-settings = get_settings()
-# Mainly for /washes (3 MB of GeoJSON) but JSON list endpoints benefit too.
+# No CORS middleware: the React dashboard is served same-origin from this app,
+# and the Vite dev server proxies API paths so dev is same-origin too.
+# Gzip is mainly for /washes (3 MB of GeoJSON) but list endpoints benefit too.
 app.add_middleware(GZipMiddleware, minimum_size=1024)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.cors_origins,
-    allow_credentials=False,
-    allow_methods=["GET", "POST"],
-    allow_headers=["*"],
-)
 
 app.include_router(events.router)
 app.include_router(aprs.router)
