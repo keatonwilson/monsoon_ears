@@ -28,3 +28,7 @@ models_cache/
 
 # R session history
 .Rhistory
+
+# React dashboard (web/) — build output + deps; dist reaches the Pi via rsync
+web/node_modules/
+web/dist/
