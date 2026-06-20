@@ -17,6 +17,7 @@ rsync -av --delete \
   --exclude '*.wav' \
   --exclude '.env' \
   --exclude '.pytest_cache' \
+  --exclude 'web/node_modules' \
   --exclude '.DS_Store' \
   ./ "$PI_HOST:$PI_PATH"
 
