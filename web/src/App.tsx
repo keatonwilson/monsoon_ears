@@ -1,8 +1,27 @@
+import { Moon, Sun } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import { NavLink, Outlet } from 'react-router'
 
 import { StatusBar } from '@/components/StatusBar'
+import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
 import { cn } from '@/lib/utils'
+
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      className="size-8"
+      aria-label="Toggle dark mode"
+      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+    >
+      <Sun className="size-4 dark:hidden" />
+      <Moon className="hidden size-4 dark:block" />
+    </Button>
+  )
+}
 
 const NAV_ITEMS = [
   { to: '/', label: 'Threads' },
@@ -41,7 +60,10 @@ export default function App() {
               </NavLink>
             ))}
           </nav>
-          <StatusBar />
+          <div className="flex items-center gap-2">
+            <StatusBar />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
