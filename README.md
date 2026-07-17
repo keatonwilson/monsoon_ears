@@ -103,7 +103,8 @@ A single RTL-SDR can only tune one frequency at a time, so the SDR supervisor ti
 | Storage | `SQLModel` + SQLite (WAL mode) |
 | Schemas | `pydantic` v2 |
 | Agents *(Phase 03)* | `langgraph`, `anthropic`, `instructor` |
-| Dashboard *(Phase 04)* | `fastapi`, `streamlit`, `folium` |
+| API *(Phase 04)* | `fastapi`, `uvicorn`, `sqlglot` |
+| Dashboard | React SPA (`web/` — Vite, TanStack Query, react-leaflet, Recharts), served by FastAPI |
 | Env | `uv` (venv + lockfile), `python-dotenv` |
 
 ## Quick start
@@ -129,12 +130,13 @@ uv run python -m ingestion.runner_analog                          # Scanner → 
 uv run python -m agents.worker                                    # Classify → extract → alert
 APRS_IS_ENABLED=true uv run python -m ingestion.aprs_is_client    # APRS-IS feed
 
-# Read interface
+# Read interface (also serves the React dashboard from web/dist)
 ./scripts/run_api.sh                                              # FastAPI :8000
-./scripts/run_dashboard.sh                                        # Streamlit :8501
 ```
 
-Then any device on the LAN points its browser at `http://monsoon-ears.local:8501`. The agent worker also runs the Sonnet 4.6 monsoon-correlation digest every `DIGEST_INTERVAL_MIN` minutes via APScheduler — the dashboard's monsoon tab surfaces its most recent verdict.
+Then any device on the LAN points its browser at `http://monsoon-ears.local:8000`. The agent worker also runs the Sonnet 4.6 monsoon-correlation digest every `DIGEST_INTERVAL_MIN` minutes via APScheduler — the dashboard's monsoon tab surfaces its most recent verdict.
+
+The dashboard is a React SPA in [`web/`](./web). Build it on the dev Mac (`cd web && npm run build`) and rsync the repo to the Pi (`scripts/sync_to_pi.sh` carries `web/dist/`); FastAPI serves it from the same port as the API, so there is no separate dashboard process. See [`web/README.md`](./web/README.md) for development.
 
 ### Auto-start with systemd
 
@@ -144,21 +146,32 @@ The always-on backend processes (SDR supervisor, agent worker, APRS-IS feed, gau
 sudo deploy/install_services.sh
 ```
 
-The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-sdr`, `monsoon-worker`, `monsoon-aprs`, `monsoon-gauges`, `monsoon-api`, and `monsoon-dashboard`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
+The script symlinks the units out of the repo (so `git pull` keeps them current), runs `daemon-reload`, and `enable --now`s `monsoon-sdr`, `monsoon-worker`, `monsoon-aprs`, `monsoon-gauges`, and `monsoon-api`. Each is `Restart=on-failure`, reads secrets from `.env` via `EnvironmentFile`, and runs as user `keaton`. Watch them with:
 
 ```bash
-systemctl status monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api monsoon-dashboard
+systemctl status monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api
 journalctl -u monsoon-sdr -f
 ```
 
-`monsoon-sdr` owns the dongle and runs the analog/P25 legs itself — so `monsoon-runner` and `monsoon-p25` are **not** enabled directly (they'd fight for the SDR); they remain for manual/debug runs of a single path. Which legs the supervisor will run is gated by `SDR_ENABLE_*` in `.env`. `monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI and Streamlit read-interfaces run as the `monsoon-api` / `monsoon-dashboard` services (wrapping `scripts/run_api.sh` / `scripts/run_dashboard.sh`), so they survive a reboot; `monsoon-dashboard` soft-waits on `monsoon-api`.
+`monsoon-sdr` owns the dongle and runs the analog/P25 legs itself — so `monsoon-runner` and `monsoon-p25` are **not** enabled directly (they'd fight for the SDR); they remain for manual/debug runs of a single path. Which legs the supervisor will run is gated by `SDR_ENABLE_*` in `.env`. `monsoon-aprs` only does work when `APRS_IS_ENABLED=true` in `.env` — otherwise it exits cleanly and stays inactive. The FastAPI read-interface runs as the `monsoon-api` service (wrapping `scripts/run_api.sh`) and serves both the JSON API and the React dashboard, so it survives a reboot.
 
 ### Port table
 
 | Port | Process | Role |
 |---|---|---|
-| 8000 | FastAPI / uvicorn | Read-only JSON API (`/events`, `/aprs`, `/gauges`, `/weather/alerts`, `/summary`, `/alerts`, `/query`) |
-| 8501 | Streamlit | Browser dashboard (live feed, Folium map, 24 h activity, monsoon tab, NL→SQL) |
+| 8000 | FastAPI / uvicorn | Read-only JSON API (`/events`, `/aprs`, `/gauges`, `/weather/alerts`, `/summary`, `/alerts`, `/query`) + React dashboard (`web/dist`) |
+
+### Remote access (Tailscale)
+
+For access away from the LAN, put the Pi on a tailnet — no app changes needed (the SPA uses relative URLs):
+
+```bash
+curl -fsSL https://tailscale.com/install.sh | sh   # once
+sudo tailscale up
+sudo tailscale set --hostname monsoon-ears
+```
+
+With MagicDNS, browse to `http://monsoon-ears:8000` from any device on the tailnet.
 
 ### Natural-language query box
 
@@ -241,16 +254,16 @@ monsoon-ears/
 │   ├── alert.py             # Rule eval, Ntfy push, Sonnet monsoon digest, persistence
 │   ├── graph.py             # LangGraph StateGraph (classify → extract → alert)
 │   └── worker.py            # Poll DB, run graph, run scheduled digest
-├── api/                 # FastAPI read interface
-│   ├── main.py              # app + CORS + router wiring
+├── api/                 # FastAPI read interface (also serves the SPA)
+│   ├── main.py              # app + router wiring + web/dist static mount
 │   ├── deps.py              # read-only engine, settings
 │   ├── nl_sql.py            # Haiku → SELECT → sqlglot validator → ro execute
-│   └── routes/              # /events, /aprs, /summary, /alerts, /query
-├── dashboard/           # Streamlit dashboard
-│   ├── app.py               # tab composition
-│   ├── api_client.py        # tiny requests wrapper around FastAPI
-│   ├── style.py             # color palette + chip helpers
-│   └── tabs/                # one module per tab
+│   └── routes/              # /events, /aprs, /summary, /alerts, /query, /washes
+├── web/                 # React dashboard (Vite + TS + Tailwind + shadcn/ui)
+│   ├── src/api/             # typed client + TanStack Query hooks
+│   ├── src/lib/             # AZ time, palette, channel labels, URL state
+│   ├── src/components/      # chips, StatusBar, shadcn ui/
+│   └── src/pages/           # Threads, Hourly, Feed, Map, Activity, Monsoon, Ask
 ├── models/schemas.py    # Pydantic event models (Transcription/Classified/Extracted/APRS/Alert)
 ├── db/                  # SQLModel + WAL SQLite + alerts table + UPDATE helpers
 ├── data/washes.geojson  # Pima County wash polylines (committed)
@@ -259,8 +272,7 @@ monsoon-ears/
 │   ├── sync_to_pi.sh        # rsync helper
 │   ├── smoke_capture.py     # 30-sec capture-only sanity check
 │   ├── fetch_washes.py      # Pima County GIS → data/washes.geojson
-│   ├── run_api.sh           # uvicorn entrypoint
-│   └── run_dashboard.sh     # streamlit entrypoint
+│   └── run_api.sh           # uvicorn entrypoint (API + dashboard)
 ├── tests/               # pytest, 74 tests passing as of Phase 04
 └── .claude/             # Long-form spec + Claude Code build plans
 ```
@@ -287,10 +299,10 @@ monsoon-ears/
 - ✅ APRS-IS feed via `aprslib` (internet-aggregated APRS, no second dongle)
 - ✅ 48 tests passing on Mac and Pi
 
-### Phase 04 — FastAPI + Streamlit dashboard ✅
+### Phase 04 — FastAPI + dashboard ✅
 
 - ✅ FastAPI on `:8000` with `/events`, `/events/{id}`, `/aprs`, `/summary`, `/alerts`, `/query`
-- ✅ Streamlit on `:8501` — live feed (auto-refresh), Folium map with color-coded incidents + APRS station markers, 24 h altair activity chart, monsoon correlation tab
+- ✅ Dashboard — live feed (auto-refresh), map with color-coded incidents + APRS station markers, 24 h activity chart, monsoon correlation tab. Originally Streamlit on `:8501`; replaced by the React SPA in `web/` served from `:8000` (silent background refresh, dark mode, URL-persisted filters)
 - ✅ Pima County wash polylines overlay (32 features, fetched from `gisdata.pima.gov`)
 - ✅ NL→SQL query box backed by Haiku 4.5 + `sqlglot` validator + read-only SQLite
 - ✅ Alerts persisted to a new `alerts` table so the dashboard shows history without re-calling Sonnet

@@ -13,19 +13,11 @@ from sqlalchemy.engine import Engine
 
 class Settings(BaseModel):
     db_path: str
-    cors_origins: list[str]
 
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings(
-        db_path=os.getenv("DB_PATH", "./data/events.db"),
-        cors_origins=[
-            "http://localhost:8501",
-            "http://monsoon-ears.local:8501",
-            "http://127.0.0.1:8501",
-        ],
-    )
+    return Settings(db_path=os.getenv("DB_PATH", "./data/events.db"))
 
 
 @lru_cache

@@ -17,15 +17,9 @@ dependencies = [
     "geopy>=2.4",
     "requests>=2.31",
     "apscheduler>=3.10",
-    # Phase 04 — read API + dashboard.
+    # Phase 04 — read API (also serves the React dashboard from web/dist).
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
-    "streamlit>=1.38",
-    "folium>=0.17",
-    "streamlit-folium>=0.22",
-    "streamlit-autorefresh>=1.0",
-    "altair>=5.4",
-    "pandas>=2.2",
     "sqlglot>=25.0",
     "httpx>=0.27",
 ]
@@ -53,7 +47,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["ingestion", "models", "db", "config", "agents", "api", "dashboard"]
+packages = ["ingestion", "models", "db", "config", "agents", "api"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

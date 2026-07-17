@@ -23,9 +23,20 @@ fi
 # supervisor launches those runners itself, one at a time (they'd otherwise
 # fight for the SDR). The RF legs it will run are gated by SDR_ENABLE_* in .env
 # (P25 stays off until op25's audio backend is wired — deploy/op25_setup.md §4).
-# monsoon-api + monsoon-dashboard serve the UI; previously run in a tmux session
-# that did not survive a reboot. They're always-on like the rest.
-SERVICES=(monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api monsoon-dashboard)
+# monsoon-api serves the JSON API and the React dashboard (web/dist) on :8000.
+SERVICES=(monsoon-sdr monsoon-worker monsoon-aprs monsoon-gauges monsoon-api)
+
+# Units that older installs ran but the current stack doesn't. Cleaned up so an
+# in-place upgrade doesn't leave a dead Streamlit service behind.
+RETIRED=(monsoon-dashboard)
+
+for svc in "${RETIRED[@]}"; do
+  if [[ -e "$SYSTEMD_DIR/$svc.service" ]]; then
+    echo "Retiring $svc.service"
+    systemctl disable --now "$svc.service" 2>/dev/null || true
+    rm -f "$SYSTEMD_DIR/$svc.service"
+  fi
+done
 
 for svc in "${SERVICES[@]}"; do
   unit="$UNIT_DIR/$svc.service"
