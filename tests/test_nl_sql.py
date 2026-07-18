@@ -138,3 +138,30 @@ def test_query_rejects_disallowed_table(api_client, monkeypatch):
 def test_query_short_circuits_on_empty_question(api_client):
     r = api_client.post("/query", json={"question": "hi"})
     assert r.status_code == 422  # Pydantic min_length=3
+
+
+def test_query_surfaces_runtime_sql_errors_as_400(api_client, monkeypatch):
+    # sqlglot's parser accepts this (non-SQLite INTERVAL syntax), so validate_select
+    # passes it through — it only fails at actual SQLite execution time. Before the
+    # fix this bubbled up as an unhandled 500; it should now come back as a 400
+    # with a readable detail, same as the validation-rejection cases above.
+    fake_sql = "SELECT * FROM transcription_events WHERE timestamp >= NOW() - INTERVAL '10' MINUTE"
+    monkeypatch.setattr("api.nl_sql._get_client", lambda: FakeClient(fake_sql))
+    r = api_client.post("/query", json={"question": "show me incidents from the last 10 minutes"})
+    assert r.status_code == 400
+    assert "query failed to execute" in r.json()["detail"]
+
+
+def test_query_surfaces_generation_errors_as_400(api_client, monkeypatch):
+    class BrokenMessages:
+        def create(self, **kwargs):
+            raise RuntimeError("connection reset")
+
+    class BrokenClient:
+        def __init__(self):
+            self.messages = BrokenMessages()
+
+    monkeypatch.setattr("api.nl_sql._get_client", lambda: BrokenClient())
+    r = api_client.post("/query", json={"question": "anything at all"})
+    assert r.status_code == 400
+    assert "couldn't generate SQL" in r.json()["detail"]

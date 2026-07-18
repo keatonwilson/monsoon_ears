@@ -24,6 +24,7 @@ import sqlglot
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
+from sqlalchemy.exc import DBAPIError
 from sqlglot import exp
 
 from agents.caching import cached_system
@@ -165,17 +166,20 @@ def generate_sql(
     model: Optional[str] = None,
 ) -> str:
     """Ask Haiku for a candidate SELECT. Does not validate or execute."""
-    client = client if client is not None else _get_client()
     model_name = model or os.getenv("NL_SQL_MODEL") or os.getenv("CLASSIFY_MODEL", "claude-haiku-4-5-20251001")
-    response = client.messages.create(
-        model=model_name,
-        max_tokens=512,
-        # The schema doc is identical on every question, so it rides in a cached
-        # system block (default 5-min TTL fits the bursty, interactive cadence).
-        system=cached_system(SCHEMA_DOC),
-        messages=[{"role": "user", "content": _build_prompt(question)}],
-        response_model=NLQueryResponse,
-    )
+    try:
+        client = client if client is not None else _get_client()
+        response = client.messages.create(
+            model=model_name,
+            max_tokens=512,
+            # The schema doc is identical on every question, so it rides in a cached
+            # system block (default 5-min TTL fits the bursty, interactive cadence).
+            system=cached_system(SCHEMA_DOC),
+            messages=[{"role": "user", "content": _build_prompt(question)}],
+            response_model=NLQueryResponse,
+        )
+    except Exception as exc:  # noqa: BLE001 — anthropic/instructor errors, network, etc.
+        raise NLSQLError(f"couldn't generate SQL: {exc}") from exc
     return response.sql
 
 
@@ -225,5 +229,11 @@ def run(
     candidate = generate_sql(question, client=client)
     validated = validate_select(candidate)
     logger.info("nl_sql: %r -> %s", question, validated)
-    rows = execute_validated(engine, validated, timeout_sec=timeout_sec)
+    try:
+        rows = execute_validated(engine, validated, timeout_sec=timeout_sec)
+    except DBAPIError as exc:
+        # sqlglot's parser accepts SQL that isn't valid SQLite at runtime (e.g.
+        # non-SQLite date/interval syntax) — surface it as a query rejection
+        # rather than an unhandled 500.
+        raise NLSQLError(f"query failed to execute: {exc.orig}") from exc
     return NLSQLResult(sql=validated, rows=rows, row_count=len(rows))
