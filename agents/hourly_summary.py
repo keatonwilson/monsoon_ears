@@ -21,6 +21,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from config.locale import PLACE_NAME
 from db.queries import (
     active_weather_alerts,
     events_since,
@@ -112,7 +113,7 @@ def _build_prompt(
         ) or "no rainfall reported")
     )
     return (
-        f"Summarize the last {window_min} minutes of Tucson public-safety and "
+        f"Summarize the last {window_min} minutes of {PLACE_NAME} public-safety and "
         "weather monitoring into a wide-angle digest.\n\n"
         f"Voice events by type: {type_line}\n"
         f"Gauges: {gauge_note or 'flat / none'}\n"

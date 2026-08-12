@@ -90,6 +90,9 @@ Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC op
 - Raspberry Pi 5 (8 GB), active cooler, 27 W USB-C PSU, 64 GB A2 microSD
 - RTL-SDR Blog V3 + dipole antenna kit
 - Headless, SSH-only, no monitor
+- Printed case: [snap-fit Pi 5 case](https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit) (clears the active cooler, no screws)
+
+~$155 all in. See [docs/build-your-own.md](./docs/build-your-own.md) to stand one up in your own area.
 
 A single RTL-SDR can only tune one frequency at a time, so the SDR supervisor time-shares it between the analog scanner and P25/PCWIN (one RF leg at a time — see the Band Manager note above). APRS does **not** compete for the dongle: it arrives over the public APRS-IS internet feed, so no second radio is needed.
 
@@ -215,7 +218,11 @@ The `pi` extras are intentionally skipped because PyTorch does not publish an In
 
 ## Configuration
 
-All runtime tuning lives in `.env` — see [`.env.example`](./.env.example). The non-obvious knobs:
+Runtime tuning lives in `.env`; everything that ties the deployment to one place on the map lives in [`config/locale.py`](./config/locale.py) — place names, timezone offset, geocode bounding box, and hazard-season window. Three companion files carry local knowledge that can't be reduced to constants: [`config/frequencies.py`](./config/frequencies.py), [`config/gauges.py`](./config/gauges.py), and [`config/gazetteer.py`](./config/gazetteer.py). If you're standing this up somewhere other than Tucson, start with [**docs/build-your-own.md**](./docs/build-your-own.md).
+
+Two location values stay in `.env` because their clients read env directly (`NWS_POINT`, `APRS_IS_FILTER`) — keep them in sync with `REGION_CENTER`.
+
+The non-obvious `.env` knobs — see [`.env.example`](./.env.example) for the rest:
 
 | Variable | Default | What it does |
 |---|---|---|
@@ -267,13 +274,18 @@ monsoon-ears/
 ├── models/schemas.py    # Pydantic event models (Transcription/Classified/Extracted/APRS/Alert)
 ├── db/                  # SQLModel + WAL SQLite + alerts table + UPDATE helpers
 ├── data/washes.geojson  # Pima County wash polylines (committed)
-├── config/frequencies.py
+├── config/              # everything location-specific
+│   ├── locale.py            # place names, tz offset, geocode bbox, season window
+│   ├── frequencies.py       # analog FM channels + P25 talkgroups
+│   ├── gauges.py            # USGS / ALERT stream+rain gauge catalog
+│   └── gazetteer.py         # local street/wash/agency names for transcript repair
+├── docs/                # landing page (GitHub Pages) + build-your-own guide
 ├── scripts/
 │   ├── sync_to_pi.sh        # rsync helper
 │   ├── smoke_capture.py     # 30-sec capture-only sanity check
 │   ├── fetch_washes.py      # Pima County GIS → data/washes.geojson
 │   └── run_api.sh           # uvicorn entrypoint (API + dashboard)
-├── tests/               # pytest, 74 tests passing as of Phase 04
+├── tests/               # pytest, 242 tests passing
 └── .claude/             # Long-form spec + Claude Code build plans
 ```
 
