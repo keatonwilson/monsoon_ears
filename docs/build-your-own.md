@@ -27,9 +27,15 @@ the extraction quality good.
 The API line is the one to watch, and it scales with how much radio traffic you
 capture. See [Controlling cost](#controlling-cost).
 
-A case that fits the Pi 5 with the active cooler:
-[Raspberry Pi 5 Case (Snap Fit)](https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit)
-on Printables. Print settings we used are on the landing page.
+For the case we use
+[Raspberry Pi 5 Case (snap fit)](https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit)
+by [pyrho // 25.wf](https://www.printables.com/@pyrho) — free on Printables,
+CC BY-SA, two parts, no screws. It's built around the official active cooler,
+with an intake vent for the fan and exhaust at the back; the designer measured
+61.5 °C after ten minutes of all-core stress, which is the number that matters
+here since Whisper pins the CPU on every transmission. Printed in PLA, 0.4 mm
+nozzle, 0.2 mm layer height, flat side down, no supports. Several top variants
+with different port cutouts ship with it.
 
 ## Step 1 — Find your frequencies
 

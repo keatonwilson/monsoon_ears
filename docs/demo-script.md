@@ -116,7 +116,7 @@ separately.
 
 ### Shot on location
 
-- [ ] `photo-case-hero` — Pi in the printed case, good light, plain background. This is the image people remember; it's worth doing properly.
+- [ ] `photo-case-hero` — Pi in the printed case, good light, plain background. This is the image people remember; it's worth doing properly. Also crop this to 1200×630 for `assets/og-card.jpg` (the social-share card).
 - [ ] `video-case-turntable` — slow rotation, 8–10 s, loopable.
 - [ ] `photo-case-ports` — port and antenna access, for the build-your-own page.
 - [ ] `video-wash-dry` / `video-wash-running` — same wash, same framing, two conditions.

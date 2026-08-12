@@ -271,31 +271,40 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <div>
         <h2>Snap-fit, no screws</h2>
         <p class="lede" style="margin-top:18px">
-          The build runs in a printed snap-fit case that clears the Pi 5 active
-          cooler and leaves the ports and antenna lead accessible.
+          The build runs in a printed snap-fit case designed around the official
+          Pi 5 active cooler — an intake vent for the fan, exhaust at the back,
+          and vents over the radiator. Two parts, no screws.
         </p>
         <p class="lede" style="margin-top:16px">
-          The design isn't ours — it's
-          <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">this snap-fit Pi 5 case</a>
-          on Printables. Download it from the designer there; the settings below
-          are just what worked for us.
+          The design isn't ours. It's
+          <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Raspberry&nbsp;Pi&nbsp;5 Case (snap fit)</a>
+          by <b>pyrho // 25.wf</b>, free on Printables — download it there. The
+          settings below are the designer's.
         </p>
         <div class="scroll">
           <table>
             <tr><th>Setting</th><th>Value</th></tr>
-            <!-- FILL: print settings — material, nozzle, layer height, infill, supports, time -->
-            <tr><td>Material</td><td class="num">TODO</td></tr>
-            <tr><td>Layer height</td><td class="num">TODO</td></tr>
-            <tr><td>Infill</td><td class="num">TODO</td></tr>
-            <tr><td>Supports</td><td class="num">TODO</td></tr>
-            <tr><td>Print time</td><td class="num">TODO</td></tr>
+            <tr><td>Material</td><td class="num">PLA</td></tr>
+            <tr><td>Nozzle</td><td class="num">0.4 mm</td></tr>
+            <tr><td>Layer height</td><td class="num">0.2 mm</td></tr>
+            <tr><td>Orientation</td><td class="num">flat side down</td></tr>
+            <tr><td>Supports</td><td class="num">none</td></tr>
+            <tr><td>Parts</td><td class="num">2</td></tr>
           </table>
         </div>
-        <p class="muted" style="font-size:14px;margin-top:14px">
-          <!-- FILL: designer name + license, for correct attribution -->
-          Design by <b>TODO</b>, licensed <b>TODO</b>.
+        <p class="muted" style="font-size:14px;margin-top:16px">
+          Design by <a href="https://www.printables.com/@pyrho">pyrho // 25.wf</a>,
+          licensed <b>CC BY-SA</b>. Multiple top variants with different port
+          cutouts are included, so you can pick the one that matches your build.
         </p>
       </div>
+    </div>
+    <div class="note">
+      <b>It stays cool enough to matter.</b> The designer measured 61.5 °C after
+      ten minutes of all-core stress. That headroom is the reason this case works
+      for Monsoon Ears specifically — Whisper pins the CPU every time a
+      transmission comes in, all day, and a throttled Pi means transcription
+      falling behind the radio.
     </div>
   </div>
 </section>
