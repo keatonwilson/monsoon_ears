@@ -14,7 +14,7 @@ It is an exercise in three things at once: low-level DSP on commodity hardware, 
 | 01.5 | op25 install for P25 Phase II trunked digital | ✅ op25 built on Pi; **PCWIN locked & decoding end-to-end** (NAC 0x3b1, SYSID 0x3bb) — talkgroup-tagged P25 rows flow through the pipeline via the UDP audio bridge |
 | 02 | Capture → squelch → VAD → Whisper → SQLite | ✅ Done |
 | 03 | Multi-freq scanner + LangGraph classify/extract/alert + APRS-IS + Ntfy push | ✅ Done |
-| 04 | FastAPI + Streamlit dashboard with live feed, Folium map, monsoon tab, NL→SQL | ✅ Done |
+| 04 | FastAPI + dashboard with live feed, map, monsoon tab, NL→SQL (React SPA; Streamlit retired) | ✅ Done |
 | 05 | systemd units for every always-on service (incl. API + dashboard) | ✅ Done |
 | 06+ | Single-dongle SDR supervisor + Band Manager, P25 leg live, leg-failure watchdog, NWS watches/warnings in the digest, selectable faster-whisper backend | ✅ Done |
 
@@ -66,11 +66,11 @@ flowchart TB
     ALERT --> NTFY
     ALERT --> DB
 
-    subgraph UI["Dashboard (Phase 04)"]
-        FASTAPI["FastAPI /events /alerts /summary"]
-        STREAMLIT["Streamlit live feed,<br/>Folium map, monsoon tab"]
+    subgraph UI["Dashboard"]
+        FASTAPI["FastAPI :8000<br/>/events /alerts /summary /query"]
+        SPA["React SPA (web/dist)<br/>threads, map, monsoon, ask"]
     end
-    DB --> FASTAPI --> STREAMLIT
+    DB --> FASTAPI --> SPA
 ```
 
 ## Target frequencies
@@ -300,40 +300,14 @@ monsoon-ears/
 
 ## Roadmap
 
-### Phase 03 — Agent graph ✅
+Phases 01–06 are complete — see the status table at the top. Every item that
+used to sit in this section (systemd units, op25/P25, faster-whisper, pytest
+fixtures, the APRS temperature-unit fix, the gauge data source, the
+hallucination guard) has shipped.
 
-- ✅ Activity-hold multi-frequency scanner with NOAA periodic visits
-- ✅ LangGraph DAG: `TranscriptionEvent → classify → extract → alert`
-- ✅ `classify` (Haiku 4.5 via `instructor`): emit `TransmissionType` + confidence
-- ✅ `extract` (Haiku 4.5): pull locations, callsigns, units, status codes, severity. Geocode locations with cached `geopy` + Nominatim. Tucson washes as named-entity hints.
-- ✅ `alert` (rule-based): high severity / road closure → Ntfy.sh push
-- ✅ `alert` (Sonnet 4.6, every 15 min via APScheduler): monsoon correlation digest
-- ✅ APRS-IS feed via `aprslib` (internet-aggregated APRS, no second dongle)
-- ✅ 48 tests passing on Mac and Pi
-
-### Phase 04 — FastAPI + dashboard ✅
-
-- ✅ FastAPI on `:8000` with `/events`, `/events/{id}`, `/aprs`, `/summary`, `/alerts`, `/query`
-- ✅ Dashboard — live feed (auto-refresh), map with color-coded incidents + APRS station markers, 24 h activity chart, monsoon correlation tab. Originally Streamlit on `:8501`; replaced by the React SPA in `web/` served from `:8000` (silent background refresh, dark mode, URL-persisted filters)
-- ✅ Pima County wash polylines overlay (32 features, fetched from `gisdata.pima.gov`)
-- ✅ NL→SQL query box backed by Haiku 4.5 + `sqlglot` validator + read-only SQLite
-- ✅ Alerts persisted to a new `alerts` table so the dashboard shows history without re-calling Sonnet
-- ✅ 48 → 74 tests passing
-
-### Phase 05 — Polish
-
-- README demo GIF / video (ideally during an actual storm)
-- `systemd` services for runner / worker / APRS-IS so the Pi auto-recovers from reboots
-- pytest fixtures: 20 frozen transcripts + 10 APRS packets
-- APRS temperature unit fix (some CWOP stations report °C; `aprslib` doesn't normalize)
-- Whisper hallucination → false-positive HIGH severity (see id=27 in current data) — extra guard at the classify stage
-
-### Beyond Phase 05
-
-- **op25 install** → adds the entire PCWIN P25 universe (TFD, county EOC) to the same agent graph
-- **`faster-whisper`** to ditch the ~5 GB CUDA libs Torch ships even on a CPU-only Pi
-- ✅ **Stream/rain-gauge data source** (USGS Water Services + best-effort Pima County ALERT) — done, feeds the monsoon digest
-- **Local 7B LLM on a Mac mini / NUC** to eliminate ongoing API costs
+Current work and what's deliberately not being built are tracked in
+[**docs/README.md**](./docs/README.md), along with a map of every document in
+the repo.
 
 ## Cost (running 24/7)
 
