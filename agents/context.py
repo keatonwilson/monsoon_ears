@@ -17,15 +17,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
+from config.locale import UTC_OFFSET_HOURS, in_season
 from db.queries import recent_aprs, recent_flood_events, recent_gauges
 
-# Tucson is on Mountain Standard Time year-round (UTC-7, no DST).
-_TUCSON_UTC_OFFSET = timedelta(hours=-7)
-
-# North American Monsoon over southern Arizona runs ~mid-June to end of
-# September; the NWS uses a fixed June 15 – Sept 30 "monsoon season" window.
-_MONSOON_START = (6, 15)
-_MONSOON_END = (9, 30)
+_LOCAL_UTC_OFFSET = timedelta(hours=UTC_OFFSET_HOURS)
 
 
 @dataclass(frozen=True)
@@ -38,8 +33,8 @@ class Situation:
     max_gage_height_ft: float | None
     aprs_packet_count: int
     aprs_rain_max_in: float | None  # heaviest recent rainfall reported via APRS
-    hour_local: int                 # 0-23, Tucson local time
-    monsoon_season: bool            # inside the NWS June 15 – Sept 30 window
+    hour_local: int                 # 0-23, local time (config.locale.UTC_OFFSET_HOURS)
+    monsoon_season: bool            # inside the configured hazard-season window
 
     def summary_line(self) -> str:
         """One-line human/agent-readable rendering."""
@@ -53,11 +48,6 @@ class Situation:
             f"APRS rain(max)={rain} ({self.aprs_packet_count} pkts), "
             f"gauge readings={self.gauge_reading_count}"
         )
-
-
-def _is_monsoon_season(dt_local: datetime) -> bool:
-    md = (dt_local.month, dt_local.day)
-    return _MONSOON_START <= md <= _MONSOON_END
 
 
 def _safe_max(values) -> float | None:
@@ -77,7 +67,7 @@ def situational_snapshot(
     seed the digest (a temp DB_PATH + inserted rows). No network, no LLM.
     """
     now = now or datetime.now(timezone.utc)
-    local = now + _TUCSON_UTC_OFFSET
+    local = now + _LOCAL_UTC_OFFSET
 
     voice_rows = recent_flood_events(minutes=voice_window_min)
     gauge_rows = recent_gauges(minutes=gauge_window_min)
@@ -91,5 +81,5 @@ def situational_snapshot(
         aprs_packet_count=len(aprs_rows),
         aprs_rain_max_in=_safe_max(r.rainfall_in for r in aprs_rows),
         hour_local=local.hour,
-        monsoon_season=_is_monsoon_season(local),
+        monsoon_season=in_season(local.month, local.day),
     )

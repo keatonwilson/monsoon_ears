@@ -14,11 +14,11 @@ It is an exercise in three things at once: low-level DSP on commodity hardware, 
 | 01.5 | op25 install for P25 Phase II trunked digital | ✅ op25 built on Pi; **PCWIN locked & decoding end-to-end** (NAC 0x3b1, SYSID 0x3bb) — talkgroup-tagged P25 rows flow through the pipeline via the UDP audio bridge |
 | 02 | Capture → squelch → VAD → Whisper → SQLite | ✅ Done |
 | 03 | Multi-freq scanner + LangGraph classify/extract/alert + APRS-IS + Ntfy push | ✅ Done |
-| 04 | FastAPI + Streamlit dashboard with live feed, Folium map, monsoon tab, NL→SQL | ✅ Done |
+| 04 | FastAPI + dashboard with live feed, map, monsoon tab, NL→SQL (React SPA; Streamlit retired) | ✅ Done |
 | 05 | systemd units for every always-on service (incl. API + dashboard) | ✅ Done |
 | 06+ | Single-dongle SDR supervisor + Band Manager, P25 leg live, leg-failure watchdog, NWS watches/warnings in the digest, selectable faster-whisper backend | ✅ Done |
 
-Live captures already include verified Tucson Rural Metro / AMR dispatch traffic — e.g. `"Med 843, respond code 2, TC unknown, 205 West Irvington Road"` (a real EMS dispatch to a traffic collision, structured-extracted as `units=['Med 843']`, `locations=['205 W Irvington Rd']`, `severity=medium`) and `"Heart problem, 55."` (cardiac call, auto-classified as `severity=high` → Ntfy push delivered to phone). On a non-monsoon test day the Sonnet 4.6 digest agent correctly read 27 voice rows plus 13 APRS weather station packets, tabulated rainfall (`0.00 in` across the sensor network), and concluded "flash flood risk is negligible at this time" — cross-source reasoning with citations.
+Live captures already include verified Tucson Rural Metro / AMR dispatch traffic. A traffic-collision dispatch — masked here as `"Medic __, respond code 2, TC unknown, [200 block] W Irvington Rd"` — was structured-extracted into `units`, `locations` and `severity=medium`, with the address geocoded and plotted on the map. A separate high-severity call was auto-classified and delivered an Ntfy push to a phone within seconds of the transmission. On a non-monsoon test day the Sonnet 4.6 digest agent correctly read 27 voice rows plus 13 APRS weather station packets, tabulated rainfall (`0.00 in` across the sensor network), and concluded "flash flood risk is negligible at this time" — cross-source reasoning with citations.
 
 ## What's interesting about it
 
@@ -66,11 +66,11 @@ flowchart TB
     ALERT --> NTFY
     ALERT --> DB
 
-    subgraph UI["Dashboard (Phase 04)"]
-        FASTAPI["FastAPI /events /alerts /summary"]
-        STREAMLIT["Streamlit live feed,<br/>Folium map, monsoon tab"]
+    subgraph UI["Dashboard"]
+        FASTAPI["FastAPI :8000<br/>/events /alerts /summary /query"]
+        SPA["React SPA (web/dist)<br/>threads, map, monsoon, ask"]
     end
-    DB --> FASTAPI --> STREAMLIT
+    DB --> FASTAPI --> SPA
 ```
 
 ## Target frequencies
@@ -90,6 +90,9 @@ Tucson Fire Department, all of Pima County major fire/EMS, and the county EOC op
 - Raspberry Pi 5 (8 GB), active cooler, 27 W USB-C PSU, 64 GB A2 microSD
 - RTL-SDR Blog V3 + dipole antenna kit
 - Headless, SSH-only, no monitor
+- Printed case: [snap-fit Pi 5 case](https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit) (clears the active cooler, no screws)
+
+~$155 all in. See [docs/build-your-own.md](./docs/build-your-own.md) to stand one up in your own area.
 
 A single RTL-SDR can only tune one frequency at a time, so the SDR supervisor time-shares it between the analog scanner and P25/PCWIN (one RF leg at a time — see the Band Manager note above). APRS does **not** compete for the dongle: it arrives over the public APRS-IS internet feed, so no second radio is needed.
 
@@ -215,7 +218,11 @@ The `pi` extras are intentionally skipped because PyTorch does not publish an In
 
 ## Configuration
 
-All runtime tuning lives in `.env` — see [`.env.example`](./.env.example). The non-obvious knobs:
+Runtime tuning lives in `.env`; everything that ties the deployment to one place on the map lives in [`config/locale.py`](./config/locale.py) — place names, timezone offset, geocode bounding box, and hazard-season window. Three companion files carry local knowledge that can't be reduced to constants: [`config/frequencies.py`](./config/frequencies.py), [`config/gauges.py`](./config/gauges.py), and [`config/gazetteer.py`](./config/gazetteer.py). If you're standing this up somewhere other than Tucson, start with [**docs/build-your-own.md**](./docs/build-your-own.md).
+
+Two location values stay in `.env` because their clients read env directly (`NWS_POINT`, `APRS_IS_FILTER`) — keep them in sync with `REGION_CENTER`.
+
+The non-obvious `.env` knobs — see [`.env.example`](./.env.example) for the rest:
 
 | Variable | Default | What it does |
 |---|---|---|
@@ -267,13 +274,18 @@ monsoon-ears/
 ├── models/schemas.py    # Pydantic event models (Transcription/Classified/Extracted/APRS/Alert)
 ├── db/                  # SQLModel + WAL SQLite + alerts table + UPDATE helpers
 ├── data/washes.geojson  # Pima County wash polylines (committed)
-├── config/frequencies.py
+├── config/              # everything location-specific
+│   ├── locale.py            # place names, tz offset, geocode bbox, season window
+│   ├── frequencies.py       # analog FM channels + P25 talkgroups
+│   ├── gauges.py            # USGS / ALERT stream+rain gauge catalog
+│   └── gazetteer.py         # local street/wash/agency names for transcript repair
+├── docs/                # landing page (GitHub Pages) + build-your-own guide
 ├── scripts/
 │   ├── sync_to_pi.sh        # rsync helper
 │   ├── smoke_capture.py     # 30-sec capture-only sanity check
 │   ├── fetch_washes.py      # Pima County GIS → data/washes.geojson
 │   └── run_api.sh           # uvicorn entrypoint (API + dashboard)
-├── tests/               # pytest, 74 tests passing as of Phase 04
+├── tests/               # pytest, 242 tests passing
 └── .claude/             # Long-form spec + Claude Code build plans
 ```
 
@@ -288,40 +300,14 @@ monsoon-ears/
 
 ## Roadmap
 
-### Phase 03 — Agent graph ✅
+Phases 01–06 are complete — see the status table at the top. Every item that
+used to sit in this section (systemd units, op25/P25, faster-whisper, pytest
+fixtures, the APRS temperature-unit fix, the gauge data source, the
+hallucination guard) has shipped.
 
-- ✅ Activity-hold multi-frequency scanner with NOAA periodic visits
-- ✅ LangGraph DAG: `TranscriptionEvent → classify → extract → alert`
-- ✅ `classify` (Haiku 4.5 via `instructor`): emit `TransmissionType` + confidence
-- ✅ `extract` (Haiku 4.5): pull locations, callsigns, units, status codes, severity. Geocode locations with cached `geopy` + Nominatim. Tucson washes as named-entity hints.
-- ✅ `alert` (rule-based): high severity / road closure → Ntfy.sh push
-- ✅ `alert` (Sonnet 4.6, every 15 min via APScheduler): monsoon correlation digest
-- ✅ APRS-IS feed via `aprslib` (internet-aggregated APRS, no second dongle)
-- ✅ 48 tests passing on Mac and Pi
-
-### Phase 04 — FastAPI + dashboard ✅
-
-- ✅ FastAPI on `:8000` with `/events`, `/events/{id}`, `/aprs`, `/summary`, `/alerts`, `/query`
-- ✅ Dashboard — live feed (auto-refresh), map with color-coded incidents + APRS station markers, 24 h activity chart, monsoon correlation tab. Originally Streamlit on `:8501`; replaced by the React SPA in `web/` served from `:8000` (silent background refresh, dark mode, URL-persisted filters)
-- ✅ Pima County wash polylines overlay (32 features, fetched from `gisdata.pima.gov`)
-- ✅ NL→SQL query box backed by Haiku 4.5 + `sqlglot` validator + read-only SQLite
-- ✅ Alerts persisted to a new `alerts` table so the dashboard shows history without re-calling Sonnet
-- ✅ 48 → 74 tests passing
-
-### Phase 05 — Polish
-
-- README demo GIF / video (ideally during an actual storm)
-- `systemd` services for runner / worker / APRS-IS so the Pi auto-recovers from reboots
-- pytest fixtures: 20 frozen transcripts + 10 APRS packets
-- APRS temperature unit fix (some CWOP stations report °C; `aprslib` doesn't normalize)
-- Whisper hallucination → false-positive HIGH severity (see id=27 in current data) — extra guard at the classify stage
-
-### Beyond Phase 05
-
-- **op25 install** → adds the entire PCWIN P25 universe (TFD, county EOC) to the same agent graph
-- **`faster-whisper`** to ditch the ~5 GB CUDA libs Torch ships even on a CPU-only Pi
-- ✅ **Stream/rain-gauge data source** (USGS Water Services + best-effort Pima County ALERT) — done, feeds the monsoon digest
-- **Local 7B LLM on a Mac mini / NUC** to eliminate ongoing API costs
+Current work and what's deliberately not being built are tracked in
+[**docs/README.md**](./docs/README.md), along with a map of every document in
+the repo.
 
 ## Cost (running 24/7)
 

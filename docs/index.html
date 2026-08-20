@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Monsoon Ears — listening to Tucson, one transmission at a time</title>
+<meta name="description" content="A Raspberry Pi and a $40 software-defined radio that listens to Tucson emergency radio, transcribes it locally, and correlates it with rainfall and stream gauges to catch flash floods.">
+<meta property="og:title" content="Monsoon Ears">
+<meta property="og:description" content="A $155 radio-intelligence pipeline that listens for flash floods.">
+<!-- ASSET photo-case-hero: 1200x630 social card -->
+<meta property="og:image" content="assets/og-card.jpg">
+<meta name="theme-color" content="#12101a">
+<style>
+/* ponytail: one hand-written file, no build step. GitHub Pages serves docs/ as-is.
+   Committed to a single dark look on purpose — it suits the subject and halves the CSS. */
+:root{
+  --bg:#12101a; --bg-soft:#1a1826; --line:#2c2938;
+  --ink:#e8e4f0; --ink-dim:#a49eb8; --ink-faint:#6f6885;
+  --accent:#f0a830;      /* dust-lit amber */
+  --accent-soft:#f0a83022;
+  --flood:#4aa8d8;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+  --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Inter,sans-serif;
+  --wrap:min(1080px,92vw);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;background:var(--bg);color:var(--ink);
+  font:400 17px/1.65 var(--sans);-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3{line-height:1.15;letter-spacing:-.02em;margin:0}
+a{color:var(--accent);text-underline-offset:3px}
+img,video{max-width:100%;height:auto;display:block}
+code{font:500 .9em/1 var(--mono);background:var(--bg-soft);padding:.15em .4em;border-radius:4px;color:var(--ink)}
+.wrap{width:var(--wrap);margin-inline:auto}
+section{padding:clamp(56px,9vw,104px) 0;border-top:1px solid var(--line)}
+.eyebrow{font:600 12px/1 var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--accent);margin-bottom:18px}
+.lede{font-size:clamp(18px,2.1vw,21px);color:var(--ink-dim);max-width:62ch}
+.muted{color:var(--ink-faint)}
+
+/* Placeholder — every ASSET slot renders as a labelled box until the real file lands.
+   Delete the class, not the element, when you drop the asset in. */
+.ph{
+  display:grid;place-content:center;gap:6px;text-align:center;
+  background:
+    repeating-linear-gradient(45deg,transparent,transparent 9px,#ffffff06 9px,#ffffff06 18px),
+    var(--bg-soft);
+  border:1px dashed var(--line);border-radius:10px;
+  color:var(--ink-faint);font:500 13px/1.5 var(--mono);padding:24px;
+  aspect-ratio:16/9;
+}
+.ph b{color:var(--accent);font-weight:600;letter-spacing:.04em}
+.ph.sq{aspect-ratio:4/3}
+.ph.tall{aspect-ratio:9/16;max-width:280px;margin-inline:auto}
+
+/* Hero */
+header{padding:clamp(60px,10vw,120px) 0 0;position:relative;overflow:hidden}
+header::before{
+  content:"";position:absolute;inset:-40% 0 auto;height:70%;
+  background:radial-gradient(60% 60% at 50% 0,#f0a83018,transparent 70%);pointer-events:none;
+}
+.title{font-size:clamp(44px,8.5vw,88px);font-weight:700;position:relative}
+.title em{font-style:normal;color:var(--accent)}
+.tagline{font:400 clamp(17px,2.3vw,22px)/1.5 var(--mono);color:var(--ink-dim);margin:20px 0 0}
+.hero-media{margin-top:clamp(36px,6vw,64px);border-radius:14px;overflow:hidden;border:1px solid var(--line)}
+.cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
+.btn{
+  display:inline-block;padding:12px 22px;border-radius:8px;text-decoration:none;
+  font:600 15px/1 var(--sans);border:1px solid var(--line);color:var(--ink);
+}
+.btn.primary{background:var(--accent);color:#1a1408;border-color:var(--accent)}
+.btn:hover{border-color:var(--accent)}
+
+/* Stat strip */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);
+  border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:44px}
+.stat{background:var(--bg);padding:22px 20px}
+.stat b{display:block;font:700 clamp(24px,3.4vw,32px)/1 var(--sans);color:var(--accent);letter-spacing:-.02em}
+.stat span{display:block;margin-top:8px;font-size:13px;color:var(--ink-faint);line-height:1.4}
+
+/* Generic two-column */
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:clamp(28px,4vw,52px);align-items:center}
+.cols.top{align-items:start}
+
+/* Pipeline steps */
+.steps{counter-reset:s;display:grid;gap:2px;margin-top:40px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.step{background:var(--bg);padding:22px 24px;display:grid;grid-template-columns:auto 1fr;gap:18px;align-items:baseline}
+.step::before{counter-increment:s;content:counter(s,decimal-leading-zero);font:600 13px/1 var(--mono);color:var(--accent);padding-top:4px}
+.step h3{font-size:17px;margin-bottom:5px}
+.step p{margin:0;color:var(--ink-dim);font-size:15.5px}
+
+/* Transcript sample */
+.transcript{background:var(--bg-soft);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:0 10px 10px 0;padding:22px 24px;font:400 15px/1.7 var(--mono);color:var(--ink-dim);margin-top:28px}
+.transcript .said{color:var(--ink);display:block;margin-bottom:14px}
+.transcript .k{color:var(--accent)}
+
+table{width:100%;border-collapse:collapse;margin-top:26px;font-size:15px}
+th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+th{font:600 12px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+td.num{font-family:var(--mono);color:var(--accent);white-space:nowrap}
+.scroll{overflow-x:auto}
+
+footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-faint);font-size:14.5px}
+.footlinks{display:flex;flex-wrap:wrap;gap:22px;margin-bottom:26px;font-size:16px}
+.note{background:var(--bg-soft);border:1px solid var(--line);border-radius:10px;padding:20px 22px;margin-top:30px;font-size:15px;color:var(--ink-dim)}
+.note b{color:var(--ink)}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <h1 class="title">Monsoon <em>Ears</em></h1>
+    <p class="tagline">Listening to Tucson — one transmission at a time.</p>
+    <p class="lede" style="margin-top:26px">
+      A Raspberry Pi and a $40 software-defined radio sit on a shelf and listen to
+      emergency radio all day. Everything is transcribed locally. When the rain
+      comes, it correlates what the dispatchers are saying with rainfall from
+      backyard weather stations and discharge from stream gauges, and decides
+      whether a flash flood is actually happening.
+    </p>
+
+    <div class="cta">
+      <a class="btn primary" href="#demo">Watch the demo</a>
+      <a class="btn" href="https://github.com/keatonwilson/monsoon_ears/blob/main/docs/build-your-own.md">Build one where you live</a>
+      <a class="btn" href="https://github.com/keatonwilson/monsoon_ears">Source</a>
+    </div>
+
+    <div class="hero-media">
+      <!-- ASSET video-case-turntable (fallback poster: photo-case-hero) -->
+      <div class="ph" style="aspect-ratio:21/9">
+        <b>video-case-turntable</b>
+        <span>Pi 5 in the printed case — slow rotation, 8–10 s, loopable</span>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat"><b>~$155</b><span>Total hardware, including the SDR</span></div>
+      <div class="stat"><b>5 W</b><span>Average draw, running continuously</span></div>
+      <div class="stat"><b>3</b><span>Decode paths — analog FM, P25 trunked, APRS</span></div>
+      <div class="stat"><b>0</b><span>Audio that leaves the LAN</span></div>
+    </div>
+  </div>
+</header>
+
+<section id="demo">
+  <div class="wrap">
+    <p class="eyebrow">The demo</p>
+    <h2>Ninety seconds, start to finish</h2>
+    <p class="lede" style="margin-top:16px">
+      Raw radio in, structured incident out, and a push notification when the
+      washes come up.
+    </p>
+    <div style="margin-top:36px;border:1px solid var(--line);border-radius:14px;overflow:hidden">
+      <!-- ASSET hero video — see docs/demo-script.md -->
+      <div class="ph"><b>hero-video</b><span>~100 s narrated walkthrough — script in docs/demo-script.md</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The problem</p>
+    <div class="cols">
+      <div>
+        <h2>A dry wash is not a river until it is</h2>
+        <p class="lede" style="margin-top:18px">
+          Tucson's washes are sand most of the year. During the monsoon they can
+          go from dry to moving in minutes, fed by rain that fell somewhere you
+          can't see. The official warnings are good, but they're regional, and the
+          radio traffic often knows about a specific crossing before anything
+          else does.
+        </p>
+        <p class="lede" style="margin-top:16px">
+          Monsoon Ears listens to that traffic and cross-checks it against
+          physical sensors — so a dispatcher naming a wash and a gauge on the same
+          wash rising become one signal instead of two.
+        </p>
+      </div>
+      <!-- ASSET video-wash-dry / video-wash-running -->
+      <div class="ph sq"><b>video-wash-dry → running</b><span>Same wash, same framing, two conditions</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">How it works</p>
+    <h2>Six stages, one dongle</h2>
+    <p class="lede" style="margin-top:16px">
+      A single RTL-SDR can only tune one frequency at a time, so most of the
+      design is about spending that one scarce resource — and the compute behind
+      it — carefully.
+    </p>
+
+    <div class="steps">
+      <div class="step"><div><h3>Scan and hold</h3><p>The scanner probes each priority frequency for about a second, holds when a signal appears, and resumes after a hangover window. Probe audio is prepended to the first held chunk so short transmissions don't slip between cycles.</p></div></div>
+      <div class="step"><div><h3>Squelch</h3><p>A coarse RMS-domain gate drops noise-only chunks before anything expensive touches them. Free, and it removes most of the day.</p></div></div>
+      <div class="step"><div><h3>Voice detection</h3><p>WebRTC VAD finds actual speech boundaries inside whatever survived. Cheap, and it trims the silence Whisper would otherwise hallucinate over.</p></div></div>
+      <div class="step"><div><h3>Transcribe</h3><p>Whisper runs locally on the Pi's CPU. Its own per-segment confidence signals — no-speech probability, average log-probability, compression ratio — filter out the ghost text it emits on silence.</p></div></div>
+      <div class="step"><div><h3>Classify and extract</h3><p>A separate worker polls the database and runs a small agent graph: classify, then extract structured incident data against a local gazetteer, then geocode. Decoupled, so an API outage backlogs the queue instead of breaking capture.</p></div></div>
+      <div class="step"><div><h3>Correlate</h3><p>Every fifteen minutes, a larger model reads the recent voice traffic, the APRS weather packets, the stream and rain gauges, and the active NWS warnings, and decides whether they add up to a flood.</p></div></div>
+    </div>
+
+    <div class="transcript">
+      <span class="said">"…Engine 4-1, respond, water rescue, vehicle in the wash at the 200 block…"</span>
+      <span class="k">type</span> flood &nbsp; <span class="k">severity</span> high &nbsp; <span class="k">units</span> ['Engine 41']<br>
+      <span class="k">wash</span> — matched to gazetteer &nbsp; <span class="k">road_closure</span> true
+    </div>
+    <p class="muted" style="font-size:14px;margin-top:12px">
+      Illustrative. Real captures on this page are flood-related and have street
+      numbers masked — see the note at the bottom.
+    </p>
+
+    <div style="margin-top:44px">
+      <!-- ASSET loop-feed -->
+      <div class="ph"><b>loop-feed</b><span>Feed page taking rows in real time — silent loop, cut from segment 4</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The showcase</p>
+    <h2>Correlation, with citations</h2>
+    <p class="lede" style="margin-top:16px">
+      The digest doesn't just summarize. It weighs an official NWS warning above
+      a rising gauge, a rising gauge above backyard rainfall, and reports which
+      events and readings it used to reach the verdict. On a quiet day it says so
+      — which is the harder behaviour to get right.
+    </p>
+    <div class="cols top" style="margin-top:38px">
+      <!-- ASSET loop-digest -->
+      <div class="ph"><b>loop-digest</b><span>MonsoonPage during real correlated activity</span></div>
+      <!-- ASSET screen-phone-ntfy -->
+      <div class="ph tall"><b>screen-phone-ntfy</b><span>Push arriving</span></div>
+    </div>
+    <div class="note">
+      <b>Perennial reaches are flagged.</b> Some gauges sit below wastewater
+      plants and run steady flow year-round. Without marking those, normal
+      conditions read as a flood on every single run — the kind of detail that
+      only shows up once the thing is actually deployed.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Ask it things</p>
+    <h2>Plain English over your own radio archive</h2>
+    <p class="lede" style="margin-top:16px">
+      Months of structured incident data end up in a SQLite file. Ask a question
+      in English; it becomes SQL and returns rows.
+    </p>
+    <div style="margin-top:34px">
+      <!-- ASSET loop-ask -->
+      <div class="ph"><b>loop-ask</b><span>AskPage — question in, SQL and rows out</span></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">The case</p>
+    <div class="cols">
+      <!-- ASSET photo-case-hero -->
+      <div class="ph sq"><b>photo-case-hero</b><span>Pi in the printed case, good light, plain background</span></div>
+      <div>
+        <h2>Snap-fit, no screws</h2>
+        <p class="lede" style="margin-top:18px">
+          The build runs in a printed snap-fit case designed around the official
+          Pi 5 active cooler — an intake vent for the fan, exhaust at the back,
+          and vents over the radiator. Two parts, no screws.
+        </p>
+        <p class="lede" style="margin-top:16px">
+          The design isn't ours. It's
+          <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Raspberry&nbsp;Pi&nbsp;5 Case (snap fit)</a>
+          by <b>pyrho // 25.wf</b>, free on Printables — download it there. The
+          settings below are the designer's.
+        </p>
+        <div class="scroll">
+          <table>
+            <tr><th>Setting</th><th>Value</th></tr>
+            <tr><td>Material</td><td class="num">PLA</td></tr>
+            <tr><td>Nozzle</td><td class="num">0.4 mm</td></tr>
+            <tr><td>Layer height</td><td class="num">0.2 mm</td></tr>
+            <tr><td>Orientation</td><td class="num">flat side down</td></tr>
+            <tr><td>Supports</td><td class="num">none</td></tr>
+            <tr><td>Parts</td><td class="num">2</td></tr>
+          </table>
+        </div>
+        <p class="muted" style="font-size:14px;margin-top:16px">
+          Design by <a href="https://www.printables.com/@pyrho">pyrho // 25.wf</a>,
+          licensed <b>CC BY-SA</b>. Multiple top variants with different port
+          cutouts are included, so you can pick the one that matches your build.
+        </p>
+      </div>
+    </div>
+    <div class="note">
+      <b>It stays cool enough to matter.</b> The designer measured 61.5 °C after
+      ten minutes of all-core stress. That headroom is the reason this case works
+      for Monsoon Ears specifically — Whisper pins the CPU every time a
+      transmission comes in, all day, and a throttled Pi means transcription
+      falling behind the radio.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="eyebrow">Build one</p>
+    <h2>Nothing here is Tucson-shaped</h2>
+    <p class="lede" style="margin-top:16px">
+      The capture path, the gating, the transcription, and the agent graph don't
+      care what they're pointed at. USGS gauges, NWS alerts, and APRS all work
+      anywhere in the US and take a latitude and longitude. What you supply is
+      local knowledge: your frequencies, your gauges, your street names.
+    </p>
+    <div class="scroll">
+      <table>
+        <tr><th>What</th><th>Where</th><th>Effort</th></tr>
+        <tr><td>Frequencies and talkgroups</td><td><code>config/frequencies.py</code></td><td>An evening on RadioReference</td></tr>
+        <tr><td>Location scalars</td><td><code>config/locale.py</code></td><td>Six values, one file</td></tr>
+        <tr><td>Stream and rain gauges</td><td><code>config/gauges.py</code></td><td>A USGS site query</td></tr>
+        <tr><td>Local place names</td><td><code>config/gazetteer.py</code></td><td>An hour with a map</td></tr>
+        <tr><td>A different hazard</td><td><code>agents/alert.py</code></td><td>One prompt, same structure</td></tr>
+      </table>
+    </div>
+    <p class="lede" style="margin-top:26px">
+      Wildfire maps onto the same shape almost one-to-one: Red Flag Warnings in
+      place of Flash Flood Warnings, fuel moisture and wind in place of stream
+      discharge, canyons in place of washes.
+    </p>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/keatonwilson/monsoon_ears/blob/main/docs/build-your-own.md">Read the build guide</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="footlinks">
+      <a href="https://github.com/keatonwilson/monsoon_ears">GitHub</a>
+      <a href="https://github.com/keatonwilson/monsoon_ears/blob/main/docs/build-your-own.md">Build guide</a>
+      <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Case on Printables</a>
+    </div>
+    <p style="max-width:70ch">
+      Receive-only monitoring of unencrypted public-safety frequencies needs no
+      license in the US. Encrypted talkgroups are excluded by configuration and
+      never decoded. Audio and transcripts shown here are flood-related, with
+      street numbers masked and any identifying detail removed — the dashboard
+      itself binds to a private network.
+    </p>
+    <p style="margin-top:22px" class="muted">Built in Tucson, Arizona.</p>
+  </div>
+</footer>
+
+</body>
+</html>
