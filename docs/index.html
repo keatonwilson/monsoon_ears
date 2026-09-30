@@ -114,9 +114,9 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
         <p class="lede">
           A Raspberry Pi and a $40 radio dongle sit in my window and listen to Tucson
           fire and EMS traffic all day. Whisper transcribes it on the Pi itself, so no
-          audio ever leaves the house. When it rains, the thing checks what dispatchers
-          are saying against backyard weather stations, stream gauges and NWS warnings,
-          and tells me whether a flash flood is actually underway.
+          audio ever leaves the house. When it rains, the Pi checks what dispatchers are
+          saying against backyard weather stations, stream gauges and NWS warnings, and
+          tells me whether a flash flood is actually underway.
         </p>
 
         <div class="cta">
@@ -136,7 +136,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
     <div class="stats">
       <div class="stat"><b>~$155</b><span>Total hardware, including the SDR</span></div>
       <div class="stat"><b>5 W</b><span>Average draw, running continuously</span></div>
-      <div class="stat"><b>3</b><span>Decode paths — analog FM, P25 trunked, APRS</span></div>
+      <div class="stat"><b>3</b><span>Decode paths: analog FM, P25 trunked, APRS</span></div>
       <div class="stat"><b>0</b><span>Audio that leaves the LAN</span></div>
     </div>
   </div>
@@ -174,9 +174,9 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       does.
     </p>
     <p class="lede" style="margin-top:16px">
-      So this listens to that traffic and checks it against real sensors. A dispatcher
-      naming a wash, plus a gauge on that same wash climbing, is worth a lot more than
-      either one alone.
+      Monsoon Ears listens to that traffic and checks it against real sensors. A
+      dispatcher naming a wash, plus a gauge on that same wash climbing, is worth a lot
+      more than either one alone.
     </p>
   </div>
 </section>
@@ -194,7 +194,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <div class="step"><div><h3>Scan and hold</h3><p>The scanner probes each priority frequency for about a second, holds when a signal appears, and resumes after a hangover window. Probe audio is prepended to the first held chunk so short transmissions don't slip between cycles.</p></div></div>
       <div class="step"><div><h3>Squelch</h3><p>A cheap RMS gate throws out the noise-only chunks before anything expensive touches them. That's most of the day gone for almost nothing.</p></div></div>
       <div class="step"><div><h3>Voice detection</h3><p>WebRTC VAD finds where the speech actually starts and stops and trims the dead air around it. Feed Whisper silence and it invents words, so this matters more than it sounds.</p></div></div>
-      <div class="step"><div><h3>Transcribe</h3><p>Whisper runs on the Pi's own CPU. It reports per-segment confidence as it goes — no-speech probability, average log-probability, compression ratio — and those numbers catch most of the ghost text it produces on a quiet channel.</p></div></div>
+      <div class="step"><div><h3>Transcribe</h3><p>Whisper runs on the Pi's own CPU. It reports per-segment confidence as it goes: no-speech probability, average log-probability, compression ratio. Those numbers catch most of the ghost text it produces on a quiet channel.</p></div></div>
       <div class="step"><div><h3>Classify and extract</h3><p>A separate worker polls the database and runs a small agent graph: classify, extract structured fields against a local gazetteer, geocode. Keeping it separate means an API outage backs up the queue instead of taking capture down with it.</p></div></div>
       <div class="step"><div><h3>Correlate</h3><p>Every fifteen minutes a bigger model reads the recent voice traffic, the APRS weather packets, the gauges and the live NWS warnings, and decides whether they add up to a flood.</p></div></div>
     </div>
@@ -205,14 +205,13 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <span class="k">wash</span> — matched to gazetteer &nbsp; <span class="k">road_closure</span> true
     </div>
     <p class="muted" style="font-size:14px;margin-top:12px">
-      Made up, to show the shape. The real captures on this page are flood traffic
+      Made up, to show the format. The real captures on this page are flood traffic
       with house numbers masked; see the footer.
     </p>
 
     <p class="lede" style="margin-top:34px">
-      You can watch all six stages run end to end in the
-      <a href="#demo">walkthrough</a> above: the feed filling up, the extracted fields,
-      and the map placing whatever it managed to geocode.
+      All six run end to end in the <a href="#demo">walkthrough</a> above, if you'd
+      rather watch it than read about it.
     </p>
   </div>
 </section>
@@ -245,7 +244,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 
 <section>
   <div class="wrap">
-    <p class="eyebrow">Ask it things</p>
+    <p class="eyebrow">The archive</p>
     <h2>Ask it in plain English</h2>
     <p class="lede" style="margin-top:16px">
       Months of extracted incidents pile up in a SQLite file. Type a question, get
@@ -259,7 +258,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <span class="k">GROUP BY</span> wash_name <span class="k">ORDER BY</span> 2 <span class="k">DESC</span>
     </div>
     <p class="muted" style="font-size:14px;margin-top:12px">
-      Also made up — the shape of the thing, not a real result.
+      Also made up. It's the shape of the answer, not a real one.
     </p>
   </div>
 </section>
@@ -282,8 +281,8 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
         <p class="lede" style="margin-top:16px">
           The design isn't mine. It's
           <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Raspberry&nbsp;Pi&nbsp;5 Case (snap fit)</a>
-          by <b>pyrho // 25.wf</b>, free on Printables — download it there. The
-          settings below are the designer's.
+          by <b>pyrho // 25.wf</b>, free on Printables, and that's where to get it.
+          The print settings below are the designer's.
         </p>
         <div class="scroll">
           <table>
@@ -332,9 +331,9 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       </table>
     </div>
     <p class="lede" style="margin-top:26px">
-      Wildfire lines up almost one-to-one: Red Flag Warnings instead of Flash Flood
-      Warnings, fuel moisture and wind instead of stream discharge, canyons instead of
-      washes.
+      Wildfire lines up almost one-to-one. Red Flag Warnings do the job Flash Flood
+      Warnings do here, and fuel moisture and wind stand in for stream discharge. The
+      canyons are your washes.
     </p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/keatonwilson/monsoon_ears/blob/main/docs/build-your-own.md">Read the build guide</a>
