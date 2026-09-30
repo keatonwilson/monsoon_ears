@@ -18,6 +18,8 @@ from fastapi.staticfiles import StaticFiles
 
 load_dotenv()
 
+from config.locale import REGION_NAME  # noqa: E402
+
 from api.routes import (  # noqa: E402
     alerts,
     aprs,
@@ -37,7 +39,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = FastAPI(
     title="Monsoon Ears API",
     version="0.4.0",
-    description="Read-only access to Tucson public-safety radio events, "
+    description=f"Read-only access to {REGION_NAME} public-safety radio events, "
                 "APRS weather packets, and the monsoon-correlation digest.",
 )
 

@@ -20,10 +20,13 @@ import { useBoolParam, useNumberParam } from '@/lib/urlState'
 
 const TUCSON_CENTER: [number, number] = [32.22, -110.97]
 
-// CARTO Positron — same basemap as the Folium dashboard.
-const TILE_URL = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png'
+// ponytail: plain OSM tiles — CARTO Positron started demanding an API key and
+// stamped "API KEY REQUIRED" across the basemap. OSM's own server needs no key.
+// Busier-looking than Positron; swap back (or to another keyless light theme)
+// if the washes and markers stop reading clearly against it.
+const TILE_URL = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
 const TILE_ATTRIBUTION =
-  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 
 const iconCache = new Map<string, L.DivIcon>()
 

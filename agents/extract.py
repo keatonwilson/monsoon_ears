@@ -24,6 +24,8 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from config.gazetteer import DISPATCH_CODES_HINT, TUCSON_WASHES, gazetteer_reference
+from config.locale import GEOCODE_QUERY_SUFFIX, REGION_NAME
+from config.locale import in_region as _in_region
 from models.schemas import ClassifiedEvent, ExtractedEvent, Severity
 
 logger = logging.getLogger(__name__)
@@ -96,8 +98,8 @@ class ExtractResponse(BaseModel):
 # every call) — keeping the per-call cost of all this context near zero during
 # active traffic, where many events share the 5-minute cache window.
 _EXTRACT_SYSTEM = (
-    "You extract structured incident data from Tucson public-safety radio "
-    "transcripts and repair garbled local proper nouns.\n\n"
+    f"You extract structured incident data from {REGION_NAME} public-safety "
+    "radio transcripts and repair garbled local proper nouns.\n\n"
     "Return only entities the text actually mentions. Don't invent. If no "
     "location is mentioned, return an empty list. Severity: 'high' for any "
     "life-threat (cardiac, structure fire, flood, MCI); 'medium' for typical "
@@ -215,15 +217,8 @@ def _persist_cache() -> None:
         logger.warning("could not persist geocode cache: %s", exc)
 
 
-# Greater Tucson / Pima County bounding box (lat S/N, lon W/E). Generous enough
-# to cover Marana, Vail, Green Valley, Saguaro NP; tight enough to reject a
-# globally-ambiguous match (a bare street name resolving to another country).
-_REGION_LAT = (31.2, 32.85)
-_REGION_LON = (-111.65, -110.4)
-
-
-def _in_region(lat: float, lon: float) -> bool:
-    return _REGION_LAT[0] <= lat <= _REGION_LAT[1] and _REGION_LON[0] <= lon <= _REGION_LON[1]
+# Bounding box, place naming and the geocode suffix live in config/locale.py —
+# that file is the one to edit when standing this up outside Tucson.
 
 
 def _default_user_agent() -> str:
@@ -284,7 +279,7 @@ def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[flo
     """Look up a location string. Cache-first, rate-limited, with provider
     fallback so one provider's failure doesn't blank out the coordinate."""
     cache = _load_cache()
-    key = f"tucson, az | {location.strip().lower()}"
+    key = f"{GEOCODE_QUERY_SUFFIX.lower()} | {location.strip().lower()}"
     hit = _read_cache_entry(cache, key)
     if hit is not None:
         return hit
@@ -299,7 +294,7 @@ def geocode(location: str, geocoder=None) -> tuple[Optional[float], Optional[flo
 
         lat, lon = None, None
         had_clean_response = False  # at least one provider answered without error
-        query = f"{location}, Tucson, AZ"
+        query = f"{location}, {GEOCODE_QUERY_SUFFIX}"
         for name, g in providers:
             try:
                 # Nominatim's published policy is 1 req/sec; the keyless fallbacks

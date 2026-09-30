@@ -18,6 +18,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
+from config.locale import GEOCODE_QUERY_SUFFIX
 from db.queries import (
     events_for_thread,
     threads_needing_summary,
@@ -61,7 +62,7 @@ def _build_prompt(rows) -> str:
     freq = rows[0].frequency_mhz
     return (
         "These are radio transmission fragments captured on a public-safety "
-        f"channel in Tucson, AZ. All on {freq} MHz, ordered in time:\n\n"
+        f"channel in {GEOCODE_QUERY_SUFFIX}. All on {freq} MHz, ordered in time:\n\n"
         + "\n".join(bullets)
         + "\n\nReconstruct what happened in 1–3 plain-English sentences. "
           "Connect fragments where they obviously refer to the same incident. "

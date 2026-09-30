@@ -32,3 +32,6 @@ models_cache/
 # React dashboard (web/) — build output + deps; dist reaches the Pi via rsync
 web/node_modules/
 web/dist/
+
+# Raw screen-recording sources — encoded outputs go to docs/assets/
+_footage/

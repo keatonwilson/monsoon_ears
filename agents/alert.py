@@ -24,6 +24,7 @@ from pydantic import BaseModel
 from agents.caching import cached_system
 from agents.hallucination import MIN_ALERT_CONFIDENCE, looks_like_hallucination
 from config.gauges import site_is_baseflow, site_wash
+from config.locale import PLACE_NAME, REGION_NAME
 from db.queries import (
     active_weather_alerts,
     insert_alert,
@@ -116,11 +117,11 @@ def push_ntfy(
 # 15 min, longer than the default 5-min cache life). The volatile event data is
 # rendered separately into the user turn. Standing guidance is verbatim from
 # .claude/plan.md §Phase 03, expanded with an explicit decision rubric.
-_MONSOON_SYSTEM = """You are monitoring Tucson emergency radio, APRS weather \
+_MONSOON_SYSTEM = f"""You are monitoring {PLACE_NAME} emergency radio, APRS weather \
 stations, and official stream/rain gauges for signs of an active flash flood.
 
 Your job each run: decide whether the supplied signals are consistent with an
-active or imminent flash flood near Tucson / Pima County, and if so summarize it.
+active or imminent flash flood near {REGION_NAME}, and if so summarize it.
 
 How to weigh the signals:
 - An active NWS Flash Flood Warning or Watch is the strongest official signal —
