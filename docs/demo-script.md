@@ -1,8 +1,13 @@
 # Landing page demo — script and asset list
 
 Working reference for the hero video and the inline loops on the landing page
-(`docs/index.html`). Nothing here is built yet; the page ships with placeholders
-that match the asset IDs below.
+(`docs/index.html`).
+
+**The page no longer carries placeholder boxes.** As of 2026-09-30 it ships with
+what actually exists — two screen recordings and four photographs — and the
+sections that had nothing were rewritten to stand on their own text rather than
+advertise a gap. Adding a remaining asset means writing its slot back in, not
+filling an empty one.
 
 ## The scheduling constraint
 
@@ -116,18 +121,33 @@ separately.
 
 ### Shot on location
 
-- [ ] `photo-case-hero` — Pi in the printed case, good light, plain background. This is the image people remember; it's worth doing properly. Also crop this to 1200×630 for `assets/og-card.jpg` (the social-share card).
-- [ ] `video-case-turntable` — slow rotation, 8–10 s, loopable.
-- [ ] `photo-case-ports` — port and antenna access, for the build-your-own page.
-- [ ] `video-wash-dry` / `video-wash-running` — same wash, same framing, two conditions.
+- [x] `photo-case-hero` — shot 2026-09-30. Published as `docs/assets/case-hero.jpg`.
+- [x] `photo-setup-hero` — the whole rig on the windowsill with the antenna and monsoon sky. Not in the original list; it became the hero image (`docs/assets/hero-setup.jpg`) and the source for `assets/og-card.jpg`.
+- [x] `photo-case-ports` — `docs/assets/case-ports.jpg`, on the build-your-own page.
+- [x] `photo-case-internals` — lid off, cooler visible. `docs/assets/case-internals.jpg`, on the build-your-own page.
+- [ ] `video-case-turntable` — slow rotation, 8–10 s, loopable. **Superseded for now:** the hero is a still photograph, which suits a portrait composition better than a 21:9 video band. Only worth shooting if the hero changes shape.
+- [ ] `video-wash-dry` / `video-wash-running` — same wash, same framing, two conditions. **Out of season as of 2026-09-30** — the running plate needs next year's monsoon (Jun 15 – Sep 30).
 
 ### Screen recordings (pipeline live)
 
-- [ ] `screen-monsoon-digest` — **storm day only.** MonsoonPage during real correlated activity.
+- [x] `screen-monsoon-digest` — shot 2026-09-29 11:23 MST during a Flash Flood Warning. Published as `docs/assets/digest.mp4` (12.5 s, silent loop).
 - [ ] `screen-phone-ntfy` — phone screen recording, push arriving.
-- [ ] `screen-feed-filling` — Feed page taking rows in real time.
-- [ ] `screen-ask-nl-sql` — AskPage, pre-planned query.
-- [ ] `screen-map-washes` — MapPage with the wash overlay (fallback for segment 3).
+- [x] `screen-feed-filling` / `screen-map-washes` — both covered by the single dashboard tour shot 2026-09-29 10:08 MST. Published as `docs/assets/tour.mp4` (52.5 s, silent, three regions blurred).
+- [ ] `screen-ask-nl-sql` — AskPage, pre-planned query. **Not shot:** the take errored out (API credit balance), and the error text exposed billing state. Reshoot against a scrubbed DB.
+
+### Blurs applied to `tour.mp4`
+
+Masking these was cheaper than reshooting, but they are the reason the raw
+`.mov` files stay out of git (`_footage/` is ignored):
+
+| Time | What | Why |
+|---|---|---|
+| 4–13.5 s | Three bullets in the hourly rollup | Overdose, unconscious-person and medical-alarm calls, each with a full street address |
+| 20.3–26.2 s | One raw-feed card band | A transmission naming a fall (injury detail); band is oversized to survive scroll drift |
+| 29.8–34 s | Map popup | EMS transport with destination hospital |
+
+The recording was also cut at 52.5 s, which drops both the Ask error and a
+Monsoon-tab scroll where an EMS event with two house numbers comes into view.
 
 Record at 2x the final display size; the dashboard is dense and re-encoding is
 unforgiving.

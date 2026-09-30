@@ -37,6 +37,14 @@ here since Whisper pins the CPU on every transmission. Printed in PLA, 0.4 mm
 nozzle, 0.2 mm layer height, flat side down, no supports. Several top variants
 with different port cutouts ship with it.
 
+<p align="center">
+  <img src="assets/case-internals.jpg" alt="The printed case with its lid removed, showing the Raspberry Pi 5 with the official active cooler seated on it, and the RTL-SDR dongle unplugged alongside." width="420">
+  <img src="assets/case-ports.jpg" alt="The assembled case from a low angle, with the USB-C power port and two USB ports accessible through the cutouts and the SDR dongle plugged in behind." width="420">
+</p>
+
+Left: the cooler clears the lid, which is the whole point of this case. Right:
+the port cutouts you'll actually use — power, the SDR, and a spare.
+
 ## Step 1 — Find your frequencies
 
 This is the step that decides whether the project works at all, and it's the one
