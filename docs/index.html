@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Monsoon Ears — listening to Tucson, one transmission at a time</title>
-<meta name="description" content="A Raspberry Pi and a $40 software-defined radio that listens to Tucson emergency radio, transcribes it locally, and correlates it with rainfall and stream gauges to catch flash floods.">
+<title>Monsoon Ears — a scanner that notices when the washes come up</title>
+<meta name="description" content="A Raspberry Pi and a $40 radio dongle that listen to Tucson fire and EMS traffic, transcribe it locally, and check it against rain and stream gauges to catch flash floods.">
 <meta property="og:title" content="Monsoon Ears">
-<meta property="og:description" content="A $155 radio-intelligence pipeline that listens for flash floods.">
+<meta property="og:description" content="A $155 Raspberry Pi build that listens to emergency radio and watches for flash floods.">
 <!-- 1200x630 social card, cropped from assets/hero-setup.jpg -->
 <meta property="og:image" content="assets/og-card.jpg">
 <meta name="theme-color" content="#12101a">
@@ -108,15 +108,15 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 <header>
   <div class="wrap">
     <h1 class="title">Monsoon <em>Ears</em></h1>
-    <p class="tagline">Listening to Tucson — one transmission at a time.</p>
+    <p class="tagline">A scanner that notices when the washes come up.</p>
     <div class="cols top" style="margin-top:clamp(30px,5vw,50px)">
       <div>
         <p class="lede">
-          A Raspberry Pi and a $40 software-defined radio sit on a shelf and listen to
-          emergency radio all day. Everything is transcribed locally. When the rain
-          comes, it correlates what the dispatchers are saying with rainfall from
-          backyard weather stations and discharge from stream gauges, and decides
-          whether a flash flood is actually happening.
+          A Raspberry Pi and a $40 radio dongle sit in my window and listen to Tucson
+          fire and EMS traffic all day. Whisper transcribes it on the Pi itself, so no
+          audio ever leaves the house. When it rains, the thing checks what dispatchers
+          are saying against backyard weather stations, stream gauges and NWS warnings,
+          and tells me whether a flash flood is actually underway.
         </p>
 
         <div class="cta">
@@ -129,7 +129,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <figure class="shot">
         <img src="assets/hero-setup.jpg" width="1125" height="1500"
              alt="A Raspberry Pi 5 with its active cooler sits open on a windowsill beside the printed case lid and an RTL-SDR dongle. A dipole antenna on a small tripod stands behind it, with monsoon clouds over Tucson through the window.">
-        <figcaption>The whole thing: a Pi 5, an RTL-SDR, a dipole on a tripod, and the sky it's listening to.</figcaption>
+        <figcaption>The whole build: a Pi 5, an RTL-SDR, and a dipole on a camera tripod in the window.</figcaption>
       </figure>
     </div>
 
@@ -147,18 +147,17 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
     <p class="eyebrow">The demo</p>
     <h2>Fifty seconds through the dashboard</h2>
     <p class="lede" style="margin-top:16px">
-      Threads, the raw feed, the map, and the day's activity — recorded live on
-      29&nbsp;September&nbsp;2026, during an active NWS Flash Flood Warning for
-      Pima County. No narration; the screen is the argument.
+      Recorded 29&nbsp;September&nbsp;2026, with a Flash Flood Warning up for Pima
+      County. Threads, the raw feed, the map, the day's activity. No narration.
     </p>
     <div class="player" style="margin-top:36px">
       <video src="assets/tour.mp4" poster="assets/tour-poster.jpg"
              controls muted playsinline preload="metadata"></video>
     </div>
     <p class="muted" style="font-size:14px;margin-top:14px">
-      Three regions are blurred: two medical calls and their street addresses in
-      the hourly rollup, an EMS transport popup on the map, and one injury
-      transmission in the feed. The blurs are deliberate, not encoding artifacts.
+      Three spots are blurred on purpose, not broken: two medical calls with street
+      addresses in the hourly rollup, an EMS popup on the map, one injury call in the
+      feed.
     </p>
   </div>
 </section>
@@ -166,18 +165,18 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 <section>
   <div class="wrap">
     <p class="eyebrow">The problem</p>
-    <h2>A dry wash is not a river until it is</h2>
+    <h2>The washes come up fast</h2>
     <p class="lede" style="margin-top:18px">
-      Tucson's washes are sand most of the year. During the monsoon they can
-      go from dry to moving in minutes, fed by rain that fell somewhere you
-      can't see. The official warnings are good, but they're regional, and the
-      radio traffic often knows about a specific crossing before anything
-      else does.
+      Most of the year Tucson's washes are just sand. In monsoon season they can go
+      from dry to moving in a few minutes, fed by rain that fell miles off where you
+      never saw it. The NWS warnings are good, but they cover whole counties. The radio
+      usually knows about one specific low-water crossing well before anything else
+      does.
     </p>
     <p class="lede" style="margin-top:16px">
-      Monsoon Ears listens to that traffic and cross-checks it against
-      physical sensors — so a dispatcher naming a wash and a gauge on the same
-      wash rising become one signal instead of two.
+      So this listens to that traffic and checks it against real sensors. A dispatcher
+      naming a wash, plus a gauge on that same wash climbing, is worth a lot more than
+      either one alone.
     </p>
   </div>
 </section>
@@ -187,18 +186,17 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
     <p class="eyebrow">How it works</p>
     <h2>Six stages, one dongle</h2>
     <p class="lede" style="margin-top:16px">
-      A single RTL-SDR can only tune one frequency at a time, so most of the
-      design is about spending that one scarce resource — and the compute behind
-      it — carefully.
+      One RTL-SDR can only hear one frequency at a time, and a Pi can only transcribe
+      so fast. Most of the design is rationing those two things.
     </p>
 
     <div class="steps">
       <div class="step"><div><h3>Scan and hold</h3><p>The scanner probes each priority frequency for about a second, holds when a signal appears, and resumes after a hangover window. Probe audio is prepended to the first held chunk so short transmissions don't slip between cycles.</p></div></div>
-      <div class="step"><div><h3>Squelch</h3><p>A coarse RMS-domain gate drops noise-only chunks before anything expensive touches them. Free, and it removes most of the day.</p></div></div>
-      <div class="step"><div><h3>Voice detection</h3><p>WebRTC VAD finds actual speech boundaries inside whatever survived. Cheap, and it trims the silence Whisper would otherwise hallucinate over.</p></div></div>
-      <div class="step"><div><h3>Transcribe</h3><p>Whisper runs locally on the Pi's CPU. Its own per-segment confidence signals — no-speech probability, average log-probability, compression ratio — filter out the ghost text it emits on silence.</p></div></div>
-      <div class="step"><div><h3>Classify and extract</h3><p>A separate worker polls the database and runs a small agent graph: classify, then extract structured incident data against a local gazetteer, then geocode. Decoupled, so an API outage backlogs the queue instead of breaking capture.</p></div></div>
-      <div class="step"><div><h3>Correlate</h3><p>Every fifteen minutes, a larger model reads the recent voice traffic, the APRS weather packets, the stream and rain gauges, and the active NWS warnings, and decides whether they add up to a flood.</p></div></div>
+      <div class="step"><div><h3>Squelch</h3><p>A cheap RMS gate throws out the noise-only chunks before anything expensive touches them. That's most of the day gone for almost nothing.</p></div></div>
+      <div class="step"><div><h3>Voice detection</h3><p>WebRTC VAD finds where the speech actually starts and stops and trims the dead air around it. Feed Whisper silence and it invents words, so this matters more than it sounds.</p></div></div>
+      <div class="step"><div><h3>Transcribe</h3><p>Whisper runs on the Pi's own CPU. It reports per-segment confidence as it goes — no-speech probability, average log-probability, compression ratio — and those numbers catch most of the ghost text it produces on a quiet channel.</p></div></div>
+      <div class="step"><div><h3>Classify and extract</h3><p>A separate worker polls the database and runs a small agent graph: classify, extract structured fields against a local gazetteer, geocode. Keeping it separate means an API outage backs up the queue instead of taking capture down with it.</p></div></div>
+      <div class="step"><div><h3>Correlate</h3><p>Every fifteen minutes a bigger model reads the recent voice traffic, the APRS weather packets, the gauges and the live NWS warnings, and decides whether they add up to a flood.</p></div></div>
     </div>
 
     <div class="transcript">
@@ -207,14 +205,14 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <span class="k">wash</span> — matched to gazetteer &nbsp; <span class="k">road_closure</span> true
     </div>
     <p class="muted" style="font-size:14px;margin-top:12px">
-      Illustrative. Real captures on this page are flood-related and have street
-      numbers masked — see the note at the bottom.
+      Made up, to show the shape. The real captures on this page are flood traffic
+      with house numbers masked; see the footer.
     </p>
 
     <p class="lede" style="margin-top:34px">
-      All six stages are visible end to end in the
-      <a href="#demo">dashboard walkthrough</a> above — the feed filling, the
-      extracted fields, and the map placing what could be geocoded.
+      You can watch all six stages run end to end in the
+      <a href="#demo">walkthrough</a> above: the feed filling up, the extracted fields,
+      and the map placing whatever it managed to geocode.
     </p>
   </div>
 </section>
@@ -222,27 +220,25 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 <section>
   <div class="wrap">
     <p class="eyebrow">The showcase</p>
-    <h2>Correlation, with citations</h2>
+    <h2>It shows its work</h2>
     <p class="lede" style="margin-top:16px">
-      The digest doesn't just summarize. It weighs an official NWS warning above
-      a rising gauge, a rising gauge above backyard rainfall, and reports which
-      events and readings it used to reach the verdict. On a quiet day it says so
-      — which is the harder behaviour to get right.
+      An NWS warning counts for more than a rising gauge, and a rising gauge counts
+      for more than somebody's backyard rain total. Whatever the digest concludes, it
+      lists the event ids and readings it leaned on. Most days it concludes nothing is
+      happening, which took far longer to get right than the alarms did.
     </p>
     <div class="player" style="margin-top:38px">
       <video src="assets/digest.mp4" poster="assets/digest-poster.jpg"
              autoplay loop muted playsinline preload="metadata"></video>
     </div>
     <p class="muted" style="font-size:14px;margin-top:14px;text-align:center">
-      Real output, 29&nbsp;September&nbsp;2026, 11:23&nbsp;MST — a Flash Flood
-      Warning and a Flood Watch both active, Sabino Creek running, and the
-      verdict citing the event ids it used.
+      Real output, 29&nbsp;September&nbsp;2026, 11:23&nbsp;MST: a Flash Flood Warning
+      and a Flood Watch both up, Sabino Creek running, and the ids behind the call.
     </p>
     <div class="note">
-      <b>Perennial reaches are flagged.</b> Some gauges sit below wastewater
-      plants and run steady flow year-round. Without marking those, normal
-      conditions read as a flood on every single run — the kind of detail that
-      only shows up once the thing is actually deployed.
+      <b>Perennial reaches are flagged.</b> A few gauges sit downstream of wastewater
+      plants and run steady water all year. Until I marked them, an ordinary Tuesday
+      looked like a flood on every single run. That one doesn't turn up in testing.
     </div>
   </div>
 </section>
@@ -250,12 +246,11 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 <section>
   <div class="wrap">
     <p class="eyebrow">Ask it things</p>
-    <h2>Plain English over your own radio archive</h2>
+    <h2>Ask it in plain English</h2>
     <p class="lede" style="margin-top:16px">
-      Months of structured incident data end up in a SQLite file. Ask a question
-      in English; it becomes SQL and returns rows. Anything that isn't a single
-      read-only <code>SELECT</code> over the allowed tables is rejected before it
-      runs.
+      Months of extracted incidents pile up in a SQLite file. Type a question, get
+      rows back. The generated query has to be one read-only <code>SELECT</code> over
+      the allowed tables or it never runs.
     </p>
     <div class="transcript" style="margin-top:28px">
       <span class="said">"which washes came up most this week?"</span>
@@ -264,7 +259,7 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <span class="k">GROUP BY</span> wash_name <span class="k">ORDER BY</span> 2 <span class="k">DESC</span>
     </div>
     <p class="muted" style="font-size:14px;margin-top:12px">
-      Illustrative — the shape of what comes back, not a captured result.
+      Also made up — the shape of the thing, not a real result.
     </p>
   </div>
 </section>
@@ -280,12 +275,12 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <div>
         <h2>Snap-fit, no screws</h2>
         <p class="lede" style="margin-top:18px">
-          The build runs in a printed snap-fit case designed around the official
-          Pi 5 active cooler — an intake vent for the fan, exhaust at the back,
-          and vents over the radiator. Two parts, no screws.
+          It lives in a printed case built around the official Pi 5 active cooler:
+          an intake vent for the fan, exhaust at the back, vents over the radiator.
+          Two parts, no screws.
         </p>
         <p class="lede" style="margin-top:16px">
-          The design isn't ours. It's
+          The design isn't mine. It's
           <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Raspberry&nbsp;Pi&nbsp;5 Case (snap fit)</a>
           by <b>pyrho // 25.wf</b>, free on Printables — download it there. The
           settings below are the designer's.
@@ -309,11 +304,9 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       </div>
     </div>
     <div class="note">
-      <b>It stays cool enough to matter.</b> The designer measured 61.5 °C after
-      ten minutes of all-core stress. That headroom is the reason this case works
-      for Monsoon Ears specifically — Whisper pins the CPU every time a
-      transmission comes in, all day, and a throttled Pi means transcription
-      falling behind the radio.
+      <b>It runs cool, which matters here.</b> The designer measured 61.5 °C after ten
+      minutes of all-core stress. Whisper pins the CPU every time a transmission comes
+      in, all day long, and a throttled Pi just falls further behind the radio.
     </div>
   </div>
 </section>
@@ -321,12 +314,12 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
 <section>
   <div class="wrap">
     <p class="eyebrow">Build one</p>
-    <h2>Nothing here is Tucson-shaped</h2>
+    <h2>None of this is specific to Tucson</h2>
     <p class="lede" style="margin-top:16px">
-      The capture path, the gating, the transcription, and the agent graph don't
-      care what they're pointed at. USGS gauges, NWS alerts, and APRS all work
-      anywhere in the US and take a latitude and longitude. What you supply is
-      local knowledge: your frequencies, your gauges, your street names.
+      The capture path, the gating, the transcription and the agent graph don't care
+      where they're pointed. USGS gauges, NWS alerts and APRS all work anywhere in the
+      US and just want a latitude and longitude. What you bring is local knowledge:
+      your frequencies, your gauges, your street names.
     </p>
     <div class="scroll">
       <table>
@@ -339,9 +332,9 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       </table>
     </div>
     <p class="lede" style="margin-top:26px">
-      Wildfire maps onto the same shape almost one-to-one: Red Flag Warnings in
-      place of Flash Flood Warnings, fuel moisture and wind in place of stream
-      discharge, canyons in place of washes.
+      Wildfire lines up almost one-to-one: Red Flag Warnings instead of Flash Flood
+      Warnings, fuel moisture and wind instead of stream discharge, canyons instead of
+      washes.
     </p>
     <div class="cta">
       <a class="btn primary" href="https://github.com/keatonwilson/monsoon_ears/blob/main/docs/build-your-own.md">Read the build guide</a>
@@ -357,11 +350,11 @@ footer{padding:56px 0 72px;border-top:1px solid var(--line);color:var(--ink-fain
       <a href="https://www.printables.com/model/642650-raspberry-pi-5-case-snap-fit">Case on Printables</a>
     </div>
     <p style="max-width:70ch">
-      Receive-only monitoring of unencrypted public-safety frequencies needs no
-      license in the US. Encrypted talkgroups are excluded by configuration and
-      never decoded. The recordings on this page were made during a real flood
-      event; medical calls, street numbers, and patient detail are blurred out
-      before publishing, and the dashboard itself binds to a private network.
+      Listening to unencrypted public-safety frequencies needs no license in the US,
+      and nothing here transmits. Encrypted talkgroups are excluded by configuration
+      and never decoded. The recordings on this page come from a real flood day, so
+      medical calls, house numbers and patient detail are blurred before anything gets
+      published. The dashboard itself only binds to my own network.
     </p>
     <p style="margin-top:22px" class="muted">Built in Tucson, Arizona.</p>
   </div>
